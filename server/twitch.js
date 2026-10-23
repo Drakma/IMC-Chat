@@ -11,7 +11,7 @@ const MOD_SCOPES = ['user:read:moderated_channels', 'moderator:manage:banned_use
 const EMOTE_SCOPE = 'user:read:emotes';
 const SCOPES = CHAT_SCOPES.concat(MOD_SCOPES, [EMOTE_SCOPE]);
 const NOTICE_COLORS = ['primary', 'blue', 'green', 'orange', 'purple'];
-const DEFAULT_SETTINGS = { font: 'IMC Sans', size: 16, weight: 400, theme: 'forge', layout: 'horizontal', active: '' };
+const DEFAULT_SETTINGS = { font: 'IMC Sans', size: 16, weight: 400, theme: 'forge', layout: 'horizontal', active: '', showTime: true, altRows: false };
 const FONTS = ['IMC Sans', 'IMC Serif', 'IMC Dyslexia', 'system'], THEMES = ['forge', 'midnight', 'ember', 'dusk', 'slate', 'moss', 'cream', 'paper', 'sky'];
 
 module.exports = function createTwitch(ctx) {
@@ -40,6 +40,8 @@ module.exports = function createTwitch(ctx) {
     if ([100, 200, 300, 400, 500, 600, 700, 800, 900].includes(Number(b.weight))) settings.weight = Number(b.weight);
     if (THEMES.includes(b.theme)) settings.theme = b.theme;
     if (b.layout === 'vertical' || b.layout === 'horizontal') settings.layout = b.layout;
+    if (typeof b.showTime === 'boolean') settings.showTime = b.showTime;
+    if (typeof b.altRows === 'boolean') settings.altRows = b.altRows;
     if (typeof b.active === 'string') settings.active = b.active.slice(0, 30);
     write(SET, settings); changed(); return settings;
   }

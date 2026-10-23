@@ -1,6 +1,6 @@
 'use strict';
 /** IMC-Chat: the desktop app. Runs the local chat server in the background, shows the chat window, lives in the tray. */
-const { app, BrowserWindow, Tray, Menu, nativeImage, shell, ipcMain } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage, shell } = require('electron');
 const fs = require('node:fs'), path = require('node:path');
 const createSupervisor = require('./supervisor.js');
 
@@ -27,9 +27,8 @@ async function waitForServer() { for (let i = 0; i < 120; i++) { try { const r =
 function openWindow() {
   if (win) { if (win.isMinimized()) win.restore(); win.show(); return win.focus(); }
   const b = settings.window || {};
-  win = new BrowserWindow({ width: b.width || 1100, height: b.height || 760, minWidth: 700, minHeight: 480, backgroundColor: '#222A2A', show: false, icon: icon('icon.png'), autoHideMenuBar: true, titleBarStyle: 'hidden', titleBarOverlay: { color: '#1A2020', symbolColor: '#E2DAC2', height: 40 },
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true } });
-  win.once('ready-to-show', () => win.show());
+  win = new BrowserWindow({ width: b.width || 1100, height: b.height || 760, minWidth: 700, minHeight: 480, backgroundColor: '#222A2A', show: false, icon: icon('icon.png'), autoHideMenuBar: true, title: 'IMC-Chat' });   // a normal window: the title bar and the close button stay at the top
+  win.once('ready-to-show', () => win.show()); win.on('page-title-updated', (e) => e.preventDefault());
   win.on('close', (e) => { if (!win.isMinimized() && !win.isMaximized()) settings.window = win.getNormalBounds(); saveSettings(); if (!quitting && settings.closeToTray) { e.preventDefault(); win.hide(); } });
   win.on('closed', () => { win = null; });
   win.webContents.setWindowOpenHandler(({ url: u }) => { shell.openExternal(u); return { action: 'deny' }; });
@@ -46,11 +45,6 @@ function refreshTray() {
     { label: 'Keep running in the tray when closed', type: 'checkbox', checked: !!settings.closeToTray, click: (m) => { settings.closeToTray = m.checked; saveSettings(); } },
     { label: 'Open my data folder', click: () => shell.openPath(DATA) }, { type: 'separator' }, { label: 'Quit', click: () => { quitting = true; app.quit(); } }]));
 }
-// the page tells the window which colours the Windows buttons should have (they follow the chosen theme)
-ipcMain.on('overlay', (e, o) => {
-  const hex = /^#[0-9a-fA-F]{6}$/; if (!win || !o || !hex.test(o.color) || !hex.test(o.symbolColor)) return;
-  try { win.setTitleBarOverlay({ color: o.color, symbolColor: o.symbolColor, height: 40 }); } catch (err) { /* not supported */ }
-});
 app.on('second-instance', openWindow);
 app.whenReady().then(() => {
   app.setAppUserModelId('com.itmecasey.imcchat'); tray = new Tray(icon('tray-grey.png').resize({ width: 24, height: 24 })); tray.on('click', openWindow); refreshTray(); startServer();

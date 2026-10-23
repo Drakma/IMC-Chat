@@ -14,7 +14,7 @@
     "productName": "IMC-Chat",
     "copyright": "ItMeCasey",
     "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["main.js", "preload.js", "supervisor.js", "package.json", "build/*.png"],
+    "files": ["main.js", "supervisor.js", "package.json", "build/*.png"],
     "asar": true,
     "extraResources": [{ "from": "../server", "to": "server", "filter": ["**/*", "!node_modules/**", "!data/**", "!*-test.js"] }],
     "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "icon": "build/icon.ico" },
