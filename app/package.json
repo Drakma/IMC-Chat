@@ -1,23 +1,69 @@
 {
   "name": "imc-chat",
   "productName": "IMC-Chat",
-  "version": "2026.10.1",
+  "version": "2026.10.2",
   "description": "A Twitch chat client that joins any channel",
   "author": "ItMeCasey",
   "license": "GPL-3.0-or-later",
   "main": "main.js",
   "private": true,
-  "scripts": { "start": "electron .", "dist": "electron-builder --win nsis", "bump": "node bump-version.js" },
-  "devDependencies": { "electron": "^39.0.0", "electron-builder": "^26.0.0" },
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis",
+    "bump": "node bump-version.js"
+  },
+  "devDependencies": {
+    "electron": "^39.0.0",
+    "electron-builder": "^26.0.0"
+  },
   "build": {
     "appId": "com.itmecasey.imcchat",
     "productName": "IMC-Chat",
     "copyright": "ItMeCasey",
-    "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["main.js", "preload.js", "supervisor.js", "package.json", "build/*.png"],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "supervisor.js",
+      "package.json",
+      "build/*.png"
+    ],
     "asar": true,
-    "extraResources": [{ "from": "../server", "to": "server", "filter": ["**/*", "!node_modules/**", "!data/**", "!*-test.js"] }],
-    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "icon": "build/icon.ico" },
-    "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "IMC-Chat", "installerIcon": "build/icon.ico", "uninstallerIcon": "build/icon.ico" }
+    "extraResources": [
+      {
+        "from": "../server",
+        "to": "server",
+        "filter": [
+          "**/*",
+          "!node_modules/**",
+          "!data/**",
+          "!*-test.js"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "IMC-Chat",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
+    }
   }
 }
