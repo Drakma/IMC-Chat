@@ -1,6 +1,6 @@
 'use strict';
 /**
- * IMC-Chat's Twitch side: login (device code, like ItMeCasey Stream), the channels you joined (remembered between sessions), and one EventSub connection that
+ * IMC-Chat's Twitch side: login (device code, like IMC-Stream), the channels you joined (remembered between sessions), and one EventSub connection that
  * carries the chat of all of them: messages, GIFs, announcements, subs, gifts, raids and cheers. For channels where you are a moderator it also does the mod actions.
  */
 const fs = require('node:fs');
