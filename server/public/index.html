@@ -55,7 +55,7 @@ function drawStatus(s) {
   S = s; const ok = s.auth.status === 'ok';
   $('login').style.display = ok ? 'none' : 'grid'; $('app').style.display = ok ? 'flex' : 'none'; $('logout').style.display = ok ? '' : 'none'; $('who').textContent = ok ? s.login + (s.connected ? '' : ' (connecting...)') : '';
   $('codebox').style.display = s.device ? '' : 'none'; if (s.device) { $('code').textContent = s.device.code; $('link').href = s.device.url; $('link').textContent = s.device.url; }
-  $('lmsg').textContent = s.auth.status === 'error' ? s.auth.message : '';
+  $('lmsg').textContent = s.device ? 'Waiting for you to approve it on Twitch... (this page continues by itself)' : s.auth.status === 'error' ? s.auth.message : ''; $('connect').textContent = s.device ? 'Open the link again' : 'Connect Twitch';
   if (!s.channels.some((c) => c.login === cur)) cur = s.channels[0] ? s.channels[0].login : '';
   drawTabs(); drawPoll(s);
 }
@@ -83,7 +83,7 @@ function drawPoll(s) {
   $('poll').innerHTML = p ? '<div class="card"><div class="q">' + esc(p.title) + (p.done ? ' <span class="muted">(ended)</span>' : '') + '</div>' + (p.choices || []).map((c) => { const tot = (p.choices || []).reduce((a, x) => a + (x.votes || 0), 0) || 1; return '<div class="opt">' + esc(c.title) + ' <span class="muted">' + (c.votes || 0) + '</span><div class="bar"><i style="width:' + Math.round(100 * (c.votes || 0) / tot) + '%"></i></div></div>'; }).join('') + (p.done ? '' : '<a href="https://www.twitch.tv/' + esc(me) + '" target="_blank" rel="noopener">Open channel to vote</a>') + '</div>' : 'No poll right now.';
   $('pred').innerHTML = q ? '<div class="card"><div class="q">' + esc(q.title) + (q.done ? ' <span class="muted">(' + esc(q.status || 'ended') + ')</span>' : q.locked_at ? ' <span class="muted">(locked)</span>' : '') + '</div>' + (q.outcomes || []).map((o) => '<div class="opt" style="color:' + (o.color === 'pink' ? '#e48' : '#4FBBBC') + '">' + esc(o.title) + (q.winning_outcome_id === o.id ? ' &#10003;' : '') + ' <span class="muted">' + (o.users || 0) + ' people, ' + (o.channel_points || 0) + ' pts</span></div>').join('') + (q.done || q.locked_at ? '' : '<a href="https://www.twitch.tv/' + esc(me) + '" target="_blank" rel="noopener">Open channel to predict</a>') + '</div>' : 'No prediction right now.';
 }
-$('connect').onclick = async () => { const r = await post('login'); if (r.error) $('lmsg').textContent = r.error; };
+$('connect').onclick = async () => { const r = await post('login'); if (r.error) return ($('lmsg').textContent = r.error); drawStatus(r); if (r.device) window.open(r.device.url, '_blank'); };
 $('logout').onclick = async () => { drawStatus(await post('logout')); };
 $('add').onsubmit = async (e) => { e.preventDefault(); const v = $('join').value.trim(); if (!v) return; const r = await post('join', { channel: v }); if (r.error) return toast(r.error); $('join').value = ''; drawStatus(r); const c = r.channels[r.channels.length - 1]; openTab(c.login); };
 $('tablist').onclick = async (e) => { const x = e.target.dataset.x; if (x) { const r = await post('leave', { channel: x }); drawStatus(r); return openTab(cur); } const t = e.target.closest('.tab'); if (t) openTab(t.dataset.c); };

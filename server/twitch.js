@@ -27,6 +27,7 @@ module.exports = function createTwitch(ctx) {
   // ---------------------------------------------------------------- login
   async function startLogin() {
     if (!ctx.clientId) throw new Error('No Twitch Client ID');
+    if (device && now() < device.expires) return status();   // a code is already waiting: do not make a new one
     const r = await idPost('/device', { client_id: ctx.clientId, scopes: SCOPES.join(' ') });
     if (!r.ok) throw new Error('Twitch refused the request: ' + (r.json.message || r.status));
     device = { user_code: r.json.user_code, verification_uri: r.json.verification_uri, expires: now() + r.json.expires_in * 1000 };
