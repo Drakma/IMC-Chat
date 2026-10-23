@@ -28,7 +28,7 @@ A Twitch chat client for Windows, in the same style as [ItMeCasey Stream](https:
 - Twitch gives viewers no way to vote in polls or predictions from outside twitch.tv, and only a channel's owner can follow them, so IMC-Chat does not show them.
 
 ## Your own Twitch app (optional)
-IMC-Chat borrows ItMeCasey Stream's Twitch app for the login. To use your own: on dev.twitch.tv/console choose *Register Your Application* (any name, OAuth redirect URL `http://localhost`, category Chat Bot, client type **Public**), copy its Client ID into Settings, *Twitch app (advanced)*, and log in again.
+IMC-Chat borrows ItMeCasey Stream's Twitch app for the login. To use your own: on dev.twitch.tv/console choose *Register Your Application* (any name, OAuth redirect URL `http://localhost`, category Chat Integration (or whichever fits best: it is only a label), client type **Public**), copy its Client ID into Settings, *Twitch app (advanced)*, and log in again.
 
 ## Fonts
 `_build/make_fonts.py` draws the three typefaces from stroke skeletons: nine weights each, upright and italic, with the Latin accents. Run it to rebuild `server/public/fonts/`.
