@@ -135,6 +135,13 @@ module.exports = function createTwitch(ctx) {
     }
     mods = found; modsAt = now(); changed();
   }
+  /** channels joined before pictures were kept get theirs now */
+  async function fillImages() {
+    const need = channels.filter((c) => !c.image).slice(0, 100); if (!tokens || !need.length) return;
+    const r = await helix('GET', '/users?' + need.map((c) => 'id=' + c.id).join('&')).catch(() => null); if (!r || !r.ok) return;
+    let any = false; for (const u of r.json.data || []) { const c = channels.find((x) => x.id === u.id); if (c && u.profile_image_url) { c.image = u.profile_image_url; any = true; } }
+    if (any) { write(CH, channels); changed(); }
+  }
   async function join(name) {
     const login = clean(name); if (!/^[a-z0-9_]{3,25}$/.test(login)) throw new Error('That is not a channel name');
     if (channels.some((c) => c.login === login)) return status();
@@ -175,7 +182,7 @@ module.exports = function createTwitch(ctx) {
       if (t === 'session_welcome') {
         session = m.payload.session.id;
         if (url) { ws = w; try { old && old.close(); } catch (e) { /* gone */ } ready = true; changed(); }   // moved to a new address: the subscriptions came along
-        else Promise.all(channels.map((c) => subscribeChannel(c))).then(() => { ready = true; changed(); loadMods(true); }).catch((e) => log('subscribe failed:', e.message));
+        else Promise.all(channels.map((c) => subscribeChannel(c))).then(() => { ready = true; changed(); loadMods(true); fillImages(); }).catch((e) => log('subscribe failed:', e.message));
       } else if (t === 'session_reconnect') connect(m.payload.session.reconnect_url);
       else if (t === 'notification') onEvent(m.metadata.subscription_type, m.payload.event);
     };
@@ -235,5 +242,5 @@ module.exports = function createTwitch(ctx) {
     else throw new Error('Unknown action');
     if (!r.ok) throw new Error(r.json.message || 'Twitch refused that'); return { ok: true };
   }
-  return { startLogin, logout, join, leave, move, send, mod, connect: () => connect(), status, configure, badges, emotes, userInfo, loadMods, history: (ch) => (history.get(clean(ch)) || []).filter((m) => !m.gone), onEvent, stop: closeWs };
+  return { startLogin, logout, join, leave, move, send, mod, connect: () => connect(), status, configure, badges, emotes, userInfo, loadMods, fillImages, history: (ch) => (history.get(clean(ch)) || []).filter((m) => !m.gone), onEvent, stop: closeWs };
 };
