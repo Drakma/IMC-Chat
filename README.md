@@ -11,11 +11,17 @@ A Twitch chat client for Windows, in the same style as [ItMeCasey Stream](https:
 - **Chat:** emotes, Twitch badges (hover for the name), GIFs, replies, mention highlights, and the Twitch events: subs, resubs, gifts, raids, cheers, first messages and announcements (in their colour).
 - **Emote picker** (smile button left of Send): every emote you can use in that channel in one searchable list: the channel's own, ones you own from other channels, Twitch's, and 7TV / BetterTTV / FrankerFaceZ, in tabs. 7TV, BTTV and FFZ emotes also show in the chat.
 - **Tab completion** in the message box: `@` + Tab completes a recent chatter, a word + Tab completes an emote; Tab again for the next match, Shift+Tab for the previous.
+- **Links** in chat open in your browser (hover for the site, and a preview for direct picture links). **Ctrl+F** finds in the current channel; a button jumps back to the latest when you have scrolled up.
+- **Alerts:** your name, a reply to you, or one of your **highlight words** plays a chime, flashes the tab and (when the window is in the background) the taskbar button. Tabs show how many messages you missed. **Muted users and words** are hidden; alerts can be switched off per channel.
+- **Connection:** the header shows *Reconnecting* when Twitch's chat connection drops and *App not responding* when the app itself does.
 - **Hover a name** for a card: picture, badges, account age, bio (and the moderator buttons where you are a moderator).
 - **Tabs:** horizontal or vertical (settings), drag to reorder. Your channels, their order, the open tab and every setting are remembered between sessions.
 - **Settings (gear):** font (IMC Sans, IMC Serif, IMC Dyslexia or your system font), size, weight (Thin to Black), and 9 themes: Forge, Midnight, Ember (dark), Dusk, Slate, Moss (mid), Cream, Paper, Sky (light).
 - **Moderator tools:** in channels where you are a mod (and your own) the tab gets a sword. Hover a message to delete, timeout 10 minutes or ban; the name card has 1m/10m/1h/1d, ban and unban; the bar above the message box switches slow, followers, subs-only, emote-only and unique chat on and off, and clears the chat. Reconnect Twitch once after updating to grant the permissions.
 - Twitch gives viewers no way to vote in polls or predictions from outside twitch.tv, and only a channel's owner can follow them, so IMC-Chat does not show them.
+
+## Your own Twitch app (optional)
+IMC-Chat borrows ItMeCasey Stream's Twitch app for the login. To use your own: on dev.twitch.tv/console choose *Register Your Application* (any name, OAuth redirect URL `http://localhost`, category Chat Bot, client type **Public**), copy its Client ID into Settings, *Twitch app (advanced)*, and log in again.
 
 ## Fonts
 `_build/make_fonts.py` draws the three typefaces from stroke skeletons: nine weights each, upright and italic, with the Latin accents. Run it to rebuild `server/public/fonts/`.

@@ -14,7 +14,7 @@ const log = (...a) => { const line = new Date().toISOString() + ' ' + a.join(' '
 
 const clients = new Set();
 function broadcast(event, data) { const s = 'event: ' + event + '\ndata: ' + JSON.stringify(data) + '\n\n'; for (const r of clients) { try { r.write(s); } catch (e) { clients.delete(r); } } }
-const twitch = createTwitch({ dir: DATA, clientId, log, emit: broadcast, thirdParty });
+const twitch = createTwitch({ dir: DATA, clientId, log, emit: broadcast, thirdParty, customClient: !!(process.env.IMC_CLIENT_ID || cfg.clientId) });
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.png': 'image/png', '.ico': 'image/x-icon', '.ttf': 'font/ttf' };
 const json = (res, code, v) => { res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(v)); };
@@ -43,6 +43,10 @@ const server = http.createServer(async (req, res) => {
         if (p === '/api/logout') { twitch.logout(); return json(res, 200, twitch.status()); }
         if (p === '/api/join') return json(res, 200, await twitch.join(b.channel));
         if (p === '/api/leave') return json(res, 200, await twitch.leave(b.channel));
+        if (p === '/api/clientid') {   // use your own registered Twitch app (the login belongs to one app, so you log in again)
+          const id = String(b.clientId || '').trim(); if (id && !/^[a-z0-9]{20,40}$/.test(id)) return json(res, 200, { error: 'That does not look like a Twitch Client ID (letters and numbers, about 30 characters)' });
+          const c = Object.assign({}, cfg); if (id) c.clientId = id; else delete c.clientId; fs.writeFileSync(path.join(DATA, 'config.json'), JSON.stringify(c, null, 2)); twitch.logout(); json(res, 200, { ok: true }); return setTimeout(() => process.exit(75), 300);
+        }
         if (p === '/api/settings') return json(res, 200, twitch.configure(b));
         if (p === '/api/move') return json(res, 200, twitch.move(b.channel, b.to));
         if (p === '/api/mod') return json(res, 200, await twitch.mod(b.channel, b.action, b));

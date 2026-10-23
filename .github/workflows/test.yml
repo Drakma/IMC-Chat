@@ -1,0 +1,24 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Lint
+        run: |
+          npm install --no-audit --no-fund
+          npx eslint --max-warnings 0
+      - name: Tests
+        run: npm test
+      - name: The page's script parses
+        shell: bash
+        run: node -e "const h=require('fs').readFileSync('server/public/index.html','utf8');const i=h.lastIndexOf('<script>');new Function(h.slice(i+8,h.lastIndexOf('</script>')));console.log('page ok')"

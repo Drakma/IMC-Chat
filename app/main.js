@@ -31,9 +31,9 @@ function openWindow() {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true } });
   win.once('ready-to-show', () => win.show());
   win.on('close', (e) => { if (!win.isMinimized() && !win.isMaximized()) settings.window = win.getNormalBounds(); saveSettings(); if (!quitting && settings.closeToTray) { e.preventDefault(); win.hide(); } });
-  win.on('closed', () => { win = null; });
-  win.webContents.setWindowOpenHandler(({ url: u }) => { shell.openExternal(u); return { action: 'deny' }; });
-  win.webContents.on('will-navigate', (e, u) => { if (!u.startsWith(url()) && !u.startsWith('data:')) { e.preventDefault(); shell.openExternal(u); } });
+  win.on('closed', () => { win = null; }); win.on('focus', () => win.flashFrame(false));
+  win.webContents.setWindowOpenHandler(({ url: u }) => { if (/^https?:\/\//.test(u)) shell.openExternal(u); return { action: 'deny' }; });
+  win.webContents.on('will-navigate', (e, u) => { if (!u.startsWith(url()) && !u.startsWith('data:')) { e.preventDefault(); if (/^https?:\/\//.test(u)) shell.openExternal(u); } });
   win.loadURL(SPLASH).then(() => waitForServer().then(() => win && win.loadURL(url()))).catch(() => {});
 }
 const TEXT = { green: 'Connected', amber: 'Not connected to Twitch yet', red: 'Server problem', grey: 'Starting...' };
@@ -51,6 +51,7 @@ ipcMain.on('overlay', (e, o) => {
   const hex = /^#[0-9a-fA-F]{6}$/; if (!win || !o || !hex.test(o.color) || !hex.test(o.symbolColor)) return;
   try { win.setTitleBarOverlay({ color: o.color, symbolColor: o.symbolColor, height: 40 }); } catch (err) { /* not supported */ }
 });
+ipcMain.on('flash', () => { if (win && !win.isFocused()) win.flashFrame(true); });   // a mention while the window is in the background: the taskbar button flashes
 app.on('second-instance', openWindow);
 app.whenReady().then(() => {
   app.setAppUserModelId('com.itmecasey.imcchat'); tray = new Tray(icon('tray-grey.png').resize({ width: 24, height: 24 })); tray.on('click', openWindow); refreshTray(); startServer();

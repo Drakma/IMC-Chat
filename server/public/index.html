@@ -30,10 +30,15 @@
   .tab { padding: 8px 14px; background: var(--panel2); cursor: pointer; font-size: .9em; white-space: nowrap; display: flex; gap: 8px; align-items: center; border-top: 3px solid transparent; position: relative; }
   body.vertical .tab { border-top: 0; border-left: 4px solid transparent; padding: 9px 12px; background: transparent; } .tab:hover { background: var(--hover); }
   .tab.on { background: var(--bg); border-color: var(--accent); font-weight: 700; } body.vertical .tab.on { background: var(--bg); border-left-color: var(--accent); } .tab .nm { overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; } .tab .sw, .tab .x { margin-left: auto; } .tab .sw + .x { margin-left: 0; } .tab .x { color: var(--muted); font-size: .8em; opacity: 0; } .tab:hover .x { opacity: 1; } .tab .x:hover { color: var(--danger); }
-  .tab .dot { width: 8px; height: 8px; background: var(--accent2); display: none; flex: none; } .tab.new .dot { display: block; } .tab.ment .dot { background: var(--danger); } .tab.drop { box-shadow: inset 3px 0 0 var(--accent); } .tab .av { width: 22px; height: 22px; border-radius: 50%; flex: none; background: var(--line); object-fit: cover; } .tab .sw { color: var(--accent2); }
+  .tab .dot { display: none; flex: none; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--accent2); color: var(--on); font-size: .68em; font-weight: 800; align-items: center; justify-content: center; } .tab.new .dot { display: inline-flex; } .tab.ment .dot { background: var(--danger); color: #fff; } .tab.drop { box-shadow: inset 3px 0 0 var(--accent); } .tab .av { width: 22px; height: 22px; border-radius: 50%; flex: none; background: var(--line); object-fit: cover; } .tab .sw { color: var(--accent2); }
   #add { display: flex; gap: 6px; padding: 0 0 6px 12px; margin-left: auto; flex: none; } #add input { width: 170px; font-size: .85em; } body.vertical #add { margin: 8px 10px 4px; padding: 0; order: -1; } body.vertical #add input { flex: 1; width: auto; }
   main { flex: 1; display: flex; min-height: 0; } #chatcol { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  #log { flex: 1; overflow-y: auto; padding: 10px 16px; line-height: 1.45; }
+  #logwrap { flex: 1; min-height: 0; position: relative; display: none; flex-direction: column; } #log { flex: 1; overflow-y: auto; padding: 10px 16px; line-height: 1.45; }
+  #find { display: none; gap: 8px; padding: 8px 16px; background: var(--panel2); border-bottom: 1px solid var(--line); align-items: center; } #find input { flex: 1; }
+  #jump { display: none; position: absolute; left: 50%; transform: translateX(-50%); bottom: 14px; box-shadow: 0 4px 16px #0009; z-index: 3; }
+  .lnk { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; word-break: break-all; } .lnk:hover { color: var(--accent2); }
+  textarea { font: inherit; font-size: .9em; background: var(--input); color: var(--text); border: 2px solid var(--line); padding: 8px 10px; resize: vertical; min-height: 56px; width: 100%; } textarea:focus { outline: none; border-color: var(--accent); }
+  #conn { display: none; align-items: center; gap: 7px; font-size: .7em; letter-spacing: 2px; text-transform: uppercase; color: var(--accent2); margin-left: 6px; } #conn i { width: 9px; height: 9px; background: var(--accent2); display: inline-block; animation: blink 1s steps(2) infinite; } #conn.down { color: var(--danger); } #conn.down i { background: var(--danger); } @keyframes blink { 50% { opacity: .25; } }
   @keyframes flash { 0%, 100% { background: var(--panel2); color: var(--text); } 50% { background: var(--accent2); color: var(--on); } }
   .tab.ment:not(.on) { animation: flash 1s ease-in-out infinite; } body.noflash .tab.ment { animation: none; } @media (prefers-reduced-motion: reduce) { .tab.ment:not(.on) { animation: none; background: var(--accent2); color: var(--on); } }
   @keyframes pop { from { box-shadow: inset 0 0 0 100px color-mix(in srgb, var(--accent2) 45%, transparent); } to { box-shadow: inset 0 0 0 100px transparent; } } .m.ment.fresh { animation: pop 1.6s ease-out; }
@@ -78,12 +83,12 @@
   .th { border: 2px solid var(--line); cursor: pointer; overflow: hidden; } .th.on { border-color: var(--accent); outline: 2px solid var(--accent); } .th .sw { height: 46px; display: flex; align-items: flex-end; padding: 6px 8px; gap: 4px; } .th .sw i { width: 14px; height: 14px; display: block; } .th .nm { padding: 5px 8px; font-size: .78em; font-weight: 700; background: var(--panel2); font-family: "Segoe UI", sans-serif; }
 </style></head>
 <body>
-<header><h1>IMC-CHAT</h1><span id="dash">-</span><span id="who"></span><span class="sp"></span><button class="sysbtn" id="gear" title="Settings" style="display:none"><svg viewBox="0 0 24 24"><path d="M12 15.500a3.500 3.500 0 1 0 0-7 3.500 3.500 0 0 0 0 7z"/><path d="M19.400 13a7.600 7.600 0 0 0 0-2l2-1.600-2-3.400-2.400.9a7.500 7.500 0 0 0-1.700-1L15 3.300h-4l-.3 2.600a7.500 7.500 0 0 0-1.700 1l-2.400-.9-2 3.400L6.600 11a7.600 7.600 0 0 0 0 2l-2 1.600 2 3.400 2.400-.9a7.500 7.500 0 0 0 1.700 1l.3 2.600h4l.3-2.600a7.500 7.500 0 0 0 1.700-1l2.400.9 2-3.400z"/></svg></button></header>
+<header><h1>IMC-CHAT</h1><span id="dash">-</span><span id="who"></span><span id="conn"></span><span class="sp"></span><button class="sysbtn" id="gear" title="Settings" style="display:none"><svg viewBox="0 0 24 24"><path d="M12 15.500a3.500 3.500 0 1 0 0-7 3.500 3.500 0 0 0 0 7z"/><path d="M19.400 13a7.600 7.600 0 0 0 0-2l2-1.600-2-3.400-2.400.9a7.500 7.500 0 0 0-1.700-1L15 3.300h-4l-.3 2.600a7.500 7.500 0 0 0-1.700 1l-2.400-.9-2 3.400L6.600 11a7.600 7.600 0 0 0 0 2l-2 1.600 2 3.400 2.400-.9a7.500 7.500 0 0 0 1.700 1l.3 2.600h4l.3-2.600a7.500 7.500 0 0 0 1.700-1l2.400.9 2-3.400z"/></svg></button></header>
 <div id="app">
   <div id="banner"><span>Reconnect Twitch once to turn on the moderator tools (they need new permissions).</span><button id="reconnect">Reconnect</button></div>
   <div id="shell">
     <div id="tabs"><div id="tablist" style="display:contents"></div><form id="add"><input id="join" placeholder="join a channel..." autocomplete="off" spellcheck="false"><button>Join</button></form></div>
-    <main><div id="chatcol"><div id="empty">Join any channel with the box in the tab bar. Type a name or paste a twitch.tv link.</div><div id="log" style="display:none"></div>
+    <main><div id="chatcol"><div id="empty">Join any channel with the box in the tab bar. Type a name or paste a twitch.tv link.</div><div id="logwrap"><div id="find"><input id="findQ" placeholder="Find in this chat..." autocomplete="off" spellcheck="false"><span id="findN" class="muted"></span><button class="ghost" id="findX">Close</button></div><div id="log"></div><button id="jump"></button></div>
       <div id="modbar"></div><form id="bar" style="display:none"><div id="reply"></div><input id="msg" placeholder="Send a message" autocomplete="off" maxlength="500"><button type="button" class="ghost ic" id="emoBtn" title="Emotes"><svg viewBox="0 0 24 24" style="font-size:1.5em"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-3.5 7.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zm7 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zM12 18.5a6 6 0 0 1-5.3-3.2h10.6A6 6 0 0 1 12 18.5z"/></svg></button><button>Send</button></form></div></main>
   </div>
 </div>
@@ -96,8 +101,16 @@
     <div id="prev">Casey: the quick brown fox jumps over the lazy dog 0123456789 &mdash; <b>bold</b> <i>italic</i><br>bdpq il1 O0 &mdash; "Hello, chat!" (how's it going?)</div></div>
   <div class="sec"><h3>CHAT</h3><label class="tgl"><input type="checkbox" id="showTime"> Show timestamps</label><label class="tgl"><input type="checkbox" id="mentionSound"> Play a sound when my name is mentioned</label><div class="row2" style="grid-template-columns:90px 1fr 120px"><label>Volume</label><input type="range" id="mentionVol" min="0" max="100" step="5"><span style="text-align:right"><output id="mentionVolO"></output> <button class="ghost" id="testChime">Test</button></span></div><label class="tgl"><input type="checkbox" id="mentionFlash"> Flash the channel tab until I open it</label>
     <label class="tgl"><input type="checkbox" id="altRows"> Alternate the background of every other message <small>(easier to follow fast chat)</small></label></div>
+  <div class="sec"><h3>HIGHLIGHTS AND MUTES</h3>
+    <label class="muted">Highlight words or phrases (alert like your name, separate with commas)</label><textarea id="hlWords" placeholder="casey, gg, giveaway" spellcheck="false"></textarea>
+    <label class="muted">Muted users (their messages are hidden)</label><textarea id="muUsers" placeholder="nightbot, streamelements" spellcheck="false"></textarea>
+    <label class="muted">Muted words (messages containing these whole words are hidden)</label><textarea id="muWords" placeholder="spoiler, spoilers" spellcheck="false"></textarea>
+    <label class="muted">Alerts (sound, flash, taskbar) per channel</label><div id="alertList" style="display:grid;gap:6px"></div></div>
   <div class="sec"><h3>THEME</h3><div id="themeBox"></div></div>
   <div class="sec"><h3>ACCOUNT</h3><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><span class="muted" id="acct" style="flex:1"></span><button class="ghost" id="logout">Log out</button></div></div>
+  <div class="sec"><h3>TWITCH APP (ADVANCED)</h3><div class="muted" id="appNote"></div>
+    <div class="muted">To use your own: on <b>dev.twitch.tv/console</b> choose Register Your Application: any name, OAuth redirect URL <b>http://localhost</b>, category Chat Bot, client type <b>Public</b>. Copy its Client ID here. You log in again afterwards.</div>
+    <div style="display:flex;gap:8px"><input id="clientIdIn" placeholder="Client ID (leave empty for the shared app)" autocomplete="off" spellcheck="false" style="flex:1"><button class="ghost" id="saveClient">Save</button></div></div>
   <div class="sec"><h3>CHANNEL TABS</h3><div class="layouts"><div class="opt" data-l="horizontal"><div class="s">Horizontal</div><div class="d">Tabs in a row across the top</div></div><div class="opt" data-l="vertical"><div class="s">Vertical</div><div class="d">Tabs in a list on the left, with channel pictures</div></div></div></div>
 </div></div></div>
 <script>
@@ -125,7 +138,7 @@ const THEMES = [
 const KEYS = ['--bg', '--panel', '--panel2', '--text', '--muted', '--accent', '--accent2', '--danger', '--line', '--input', '--on', '--hover'];
 const WN = { 100: 'Thin', 200: 'ExtraLight', 300: 'Light', 400: 'Regular', 500: 'Medium', 600: 'SemiBold', 700: 'Bold', 800: 'ExtraBold', 900: 'Black' };
 const FONTS = [{ id: 'IMC Sans', d: 'Clean and rounded' }, { id: 'IMC Serif', d: 'Warm, with small feet' }, { id: 'IMC Dyslexia', d: 'Heavy base, wide spacing, letters that do not mirror' }, { id: 'system', d: 'Your Windows font' }];
-let S = null, cur = '', replyTo = null, light = false, loaded = false; const unread = {}, ments = {}, msgs = {}, badgeUrls = {}, modModes = {}, userCache = {};
+let S = null, cur = '', replyTo = null, light = false, loaded = false; const unreadN = {}, ments = {}, msgs = {}, badgeUrls = {}, modModes = {}, userCache = {};
 
 function lum(hex) { const h = hex.replace('#', ''), c = [0, 2, 4].map((i) => parseInt(h.substr(i, 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4))); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
 function fixColor(c) {   // names stay readable on the chosen theme
@@ -143,7 +156,11 @@ function drawSettings() {
   const s = S.settings; $('fontOpts').innerHTML = FONTS.map((f) => '<div class="opt' + (s.font === f.id ? ' on' : '') + '" data-f="' + esc(f.id) + '"><div class="s" style="font-family:' + (f.id === 'system' ? '\'Segoe UI\'' : '\'' + f.id + '\'') + '">' + esc(f.id === 'system' ? 'System' : f.id) + '</div><div class="d">' + esc(f.d) + '</div></div>').join('');
   $('size').value = s.size; $('sizeO').textContent = s.size + ' px'; $('weight').value = s.weight; $('weightO').textContent = WN[s.weight];
   $('themeBox').innerHTML = ['Dark', 'Mid', 'Light'].map((g) => '<div class="tg">' + g.toUpperCase() + '</div><div class="themes">' + THEMES.filter((t) => t.g === g).map((t) => '<div class="th' + (s.theme === t.id ? ' on' : '') + '" data-t="' + t.id + '"><div class="sw" style="background:' + t.v[0] + '"><i style="background:' + t.v[5] + '"></i><i style="background:' + t.v[6] + '"></i><i style="background:' + t.v[7] + '"></i><i style="background:' + t.v[3] + '"></i></div><div class="nm" style="background:' + t.v[1] + ';color:' + t.v[3] + '">' + t.name + '</div></div>').join('') + '</div>').join('');
-  $('mentionSound').checked = s.mentionSound !== false; $('mentionFlash').checked = s.mentionFlash !== false; $('mentionVol').value = s.mentionVolume; $('mentionVolO').textContent = s.mentionVolume + '%'; $('acct').textContent = 'Logged in as ' + S.login + '. Your channels and settings stay on this PC.'; $('showTime').checked = s.showTime !== false; $('altRows').checked = !!s.altRows;
+  $('mentionSound').checked = s.mentionSound !== false; $('mentionFlash').checked = s.mentionFlash !== false; $('mentionVol').value = s.mentionVolume; $('mentionVolO').textContent = s.mentionVolume + '%'; const setList = (id, arr) => { const el = $(id); if (document.activeElement !== el) el.value = (arr || []).join(', '); };
+  setList('hlWords', s.highlightWords); setList('muUsers', s.mutedUsers); setList('muWords', s.mutedWords);
+  $('alertList').innerHTML = S.channels.length ? S.channels.map((c) => '<label class="tgl"><input type="checkbox" data-alert="' + esc(c.login) + '"' + ((s.mutedAlerts || []).includes(c.login) ? '' : ' checked') + '> Alerts for ' + esc(c.name) + '</label>').join('') : '<span class="muted">Join a channel first.</span>';
+  $('appNote').textContent = S.customClient ? 'Using your own Twitch app (' + S.clientId + ').' : 'Using the shared IMC-Chat app. That works fine; your own app is only needed if you want the login screen and limits to be yours alone.';
+  $('acct').textContent = 'Logged in as ' + S.login + '. Your channels and settings stay on this PC.'; $('showTime').checked = s.showTime !== false; $('altRows').checked = !!s.altRows;
   document.querySelectorAll('.layouts .opt').forEach((o) => o.classList.toggle('on', o.dataset.l === s.layout));
 }
 let saveT = null; function save(b) { Object.assign(S.settings, b); applySettings(S.settings); clearTimeout(saveT); saveT = setTimeout(() => post('settings', S.settings), 250); }
@@ -151,20 +168,26 @@ let saveT = null; function save(b) { Object.assign(S.settings, b); applySettings
 // ---------------------------------------------------------------- status, tabs
 function drawStatus(s) {
   const first = !S; S = s; const ok = s.auth.status === 'ok';
-  $('login').style.display = ok ? 'none' : 'grid'; $('app').style.display = ok ? 'flex' : 'none'; $('gear').style.display = ok ? '' : 'none'; $('who').textContent = ok ? s.login + (s.connected ? '' : ' (connecting...)') : ''; $('dash').style.display = ok ? '' : 'none';
+  $('login').style.display = ok ? 'none' : 'grid'; $('app').style.display = ok ? 'flex' : 'none'; $('gear').style.display = ok ? '' : 'none'; $('who').textContent = ok ? s.login : ''; $('dash').style.display = ok ? '' : 'none';
   $('banner').style.display = ok && s.needsModScopes ? 'flex' : 'none';
   $('codebox').style.display = s.device ? '' : 'none'; if (s.device) { $('code').textContent = s.device.code; $('link').href = s.device.url; $('link').textContent = s.device.url; }
   $('lmsg').textContent = s.device ? 'Waiting for you to approve it on Twitch... (this page continues by itself)' : s.auth.status === 'error' ? s.auth.message : ''; $('connect').textContent = s.device ? 'Open the link again' : 'Connect Twitch';
-  loaded = true; applySettings(s.settings);
+  loaded = true; applySettings(s.settings); drawConn();
   if (first && s.settings.active && s.channels.some((c) => c.login === s.settings.active)) cur = s.settings.active;
   if (!s.channels.some((c) => c.login === cur)) cur = s.channels[0] ? s.channels[0].login : '';
   drawTabs(); if (first && cur) openTab(cur); drawModbar();
 }
+let serverDown = false;
+function drawConn() {
+  const c = $('conn'), ok = S && S.auth.status === 'ok'; if (!c) return;
+  const state = serverDown ? 'down' : ok && !S.connected ? 'wait' : '';
+  c.style.display = state ? 'inline-flex' : 'none'; c.className = state === 'down' ? 'down' : ''; c.innerHTML = state ? '<i></i>' + (state === 'down' ? 'App not responding' : 'Reconnecting') : '';
+}
 const chan = (l) => (S ? S.channels.find((c) => c.login === l) : null);
 function drawTabs() {
-  const tabs = S.channels.map((c) => '<div class="tab' + (c.login === cur ? ' on' : '') + (unread[c.login] ? ' new' : '') + (ments[c.login] ? ' ment' : '') + '" draggable="true" data-c="' + esc(c.login) + '">' + (safe(c.image) ? '<img class="av" src="' + safe(c.image) + '" alt="">' : '<span class="av"></span>') + '<span class="nm">' + esc(c.name) + '</span><span class="dot"></span>' + (c.mod ? '<span class="sw" data-tip="You are a moderator here">' + svg('sword') + '</span>' : '') + '<span class="x" data-x="' + esc(c.login) + '">&#10005;</span></div>').join('');
+  const tabs = S.channels.map((c) => '<div class="tab' + (c.login === cur ? ' on' : '') + (unreadN[c.login] ? ' new' : '') + (ments[c.login] ? ' ment' : '') + '" draggable="true" data-c="' + esc(c.login) + '">' + (safe(c.image) ? '<img class="av" src="' + safe(c.image) + '" alt="">' : '<span class="av"></span>') + '<span class="nm">' + esc(c.name) + '</span><span class="dot">' + (unreadN[c.login] > 99 ? '99+' : unreadN[c.login] || '') + '</span>' + (c.mod ? '<span class="sw" data-tip="You are a moderator here">' + svg('sword') + '</span>' : '') + '<span class="x" data-x="' + esc(c.login) + '">&#10005;</span></div>').join('');
   $('tablist').innerHTML = tabs;   // the join box is not part of this list, so it keeps its focus while chat moves
-  const has = !!cur; $('empty').style.display = has ? 'none' : ''; $('log').style.display = has ? '' : 'none'; $('bar').style.display = has ? 'flex' : 'none'; $('msg').placeholder = has ? 'Send a message to ' + cur : '';
+  const has = !!cur; $('empty').style.display = has ? 'none' : ''; $('logwrap').style.display = has ? 'flex' : 'none'; $('bar').style.display = has ? 'flex' : 'none'; $('msg').placeholder = has ? 'Send a message to ' + cur : '';
 }
 
 // ---------------------------------------------------------------- mention alert: a two-note chime made in the browser (no sound file)
@@ -180,10 +203,23 @@ function chime(force) {
 
 // ---------------------------------------------------------------- messages
 const emoMap = {}, emoList = {};
-function textWithEmotes(t, ch) {
-  const M = emoMap[ch]; if (!M) return esc(t);
-  return String(t).split(/(\s+)/).map((w) => (M[w] ? '<img class="e" alt="' + esc(w) + '" data-tip="' + esc(w) + '" data-img="' + safe(M[w]) + '" src="' + safe(M[w]) + '">' : esc(w))).join('');
+function linkOf(w) {   // a web address in the text: opens in your browser
+  const m = /^((?:https?:\/\/|www\.)[^\s]+?)([.,!?;:)\]}'"]*)$/i.exec(w); if (!m) return '';
+  let u; try { u = new URL(/^https?:/i.test(m[1]) ? m[1] : 'https://' + m[1]); } catch (e) { return ''; } if (!/^https?:$/.test(u.protocol) || !u.hostname.includes('.')) return '';
+  const img = /\.(png|jpe?g|gif|webp)$/i.test(u.pathname) && u.protocol === 'https:' ? ' data-img="' + esc(u.href) + '"' : '';
+  return '<a class="lnk" href="' + esc(u.href) + '" target="_blank" rel="noopener noreferrer" data-tip="' + esc(u.hostname.replace(/^www\./, '') + (u.pathname.length > 1 ? u.pathname.slice(0, 40) : '')) + '"' + img + '>' + esc(m[1]) + '</a>' + esc(m[2]);
 }
+function textWithEmotes(t, ch) {
+  const M = emoMap[ch] || {};
+  return String(t).split(/(\s+)/).map((w) => (M[w] ? '<img class="e" alt="' + esc(w) + '" data-tip="' + esc(w) + '" data-img="' + safe(M[w]) + '" src="' + safe(M[w]) + '">' : linkOf(w) || esc(w))).join('');
+}
+const norm = (x) => ' ' + String(x).toLowerCase().replace(/[^\p{L}\p{N}_']+/gu, ' ').trim() + ' ';
+const hasWord = (text, list) => { const t = norm(text); return (list || []).some((w) => w && t.includes(norm(w))); };
+const cfgs = () => (S && S.settings) || {};
+const muted = (m) => !m.event && ((cfgs().mutedUsers || []).includes(m.login) || hasWord(m.text, cfgs().mutedWords));
+const quiet = (ch) => (cfgs().mutedAlerts || []).includes(ch);
+let findQ = '', behind = 0;
+const matches = (m) => !findQ || ((m.event ? (m.system || '') + ' ' : '') + m.name + ' ' + (m.text || '')).toLowerCase().includes(findQ);
 function frag(f, ch) {
   if (f.gif) return '<img class="gif" loading="lazy" src="' + safe(f.gif.url) + '" alt="GIF">';
   if (f.type === 'emote') return '<img class="e" alt="' + esc(f.text) + '" data-tip="' + esc(f.text) + '" data-img="https://static-cdn.jtvnw.net/emoticons/v2/' + encodeURIComponent(f.id) + '/default/dark/3.0" src="https://static-cdn.jtvnw.net/emoticons/v2/' + encodeURIComponent(f.id) + '/default/dark/2.0">';
@@ -206,12 +242,25 @@ function line(m) {
     + '<span class="n" data-user="' + esc(m.uid) + '" style="color:' + esc(fixColor(m.color)) + '">' + esc(m.name) + '</span>: ' + m.frags.map((f) => frag(f, m.channel)).join('')
     + '<span class="acts"><span data-reply="' + esc(m.id) + '" data-name="' + esc(m.name) + '">reply</span>' + (canMod ? '<span class="dg" data-del="' + esc(m.id) + '">delete</span><span data-to="' + esc(m.uid) + '">10m</span><span class="dg" data-ban="' + esc(m.uid) + '">ban</span>' : '') + '</span></div>';
 }
-function render() { const L = $('log'); L.innerHTML = (msgs[cur] || []).filter((m) => !m.gone).map(line).join(''); L.scrollTop = L.scrollHeight; }
+function render() { const L = $('log'), list = (msgs[cur] || []).filter((m) => !m.gone && !muted(m) && matches(m)); L.innerHTML = list.map(line).join(''); L.scrollTop = L.scrollHeight; $('findN').textContent = findQ ? list.length + ' found' : ''; }
 function addMsg(m) {
-  if (m.mention && !m.mine) chime(); loadBadges(m.channel); loadEmotes(m.channel); const a = msgs[m.channel] = msgs[m.channel] || []; if (a.some((x) => x.id === m.id)) return; a.push(m); if (a.length > 400) a.shift();
-  if (m.channel === cur) { const L = $('log'), stick = L.scrollHeight - L.scrollTop - L.clientHeight < 80; L.insertAdjacentHTML('beforeend', line(m)); if (m.mention) L.lastElementChild.classList.add('fresh'); while (L.children.length > 400) L.removeChild(L.firstChild); if (stick) L.scrollTop = L.scrollHeight; }
-  else { unread[m.channel] = true; if (m.mention) ments[m.channel] = true; drawTabs(); }
+  if (muted(m)) return;
+  if (!m.event && !m.mine && !m.mention && hasWord(m.text, cfgs().highlightWords)) m.mention = true;   // one of your highlight words
+  const loud = !!m.mention && !m.mine && !quiet(m.channel);
+  if (loud) { chime(); if (!document.hasFocus() && window.imcWindow && window.imcWindow.flash) window.imcWindow.flash(); }
+  loadBadges(m.channel); loadEmotes(m.channel); const a = msgs[m.channel] = msgs[m.channel] || []; if (a.some((x) => x.id === m.id)) return; a.push(m); if (a.length > 400) a.shift();
+  if (m.channel === cur) {
+    if (!matches(m)) return;
+    const L = $('log'), stick = L.scrollHeight - L.scrollTop - L.clientHeight < 80; L.insertAdjacentHTML('beforeend', line(m)); if (loud) L.lastElementChild.classList.add('fresh'); while (L.children.length > 400) L.removeChild(L.firstChild);
+    if (stick) L.scrollTop = L.scrollHeight; else { behind++; const j = $('jump'); j.textContent = behind + ' new message' + (behind > 1 ? 's' : '') + ' \u2193'; j.style.display = 'inline-flex'; }
+  } else { unreadN[m.channel] = (unreadN[m.channel] || 0) + 1; if (loud) ments[m.channel] = true; drawTabs(); }
 }
+$('log').addEventListener('scroll', () => { const L = $('log'); if (L.scrollHeight - L.scrollTop - L.clientHeight < 80) { behind = 0; $('jump').style.display = 'none'; } });
+$('jump').onclick = () => { const L = $('log'); L.scrollTop = L.scrollHeight; behind = 0; $('jump').style.display = 'none'; };
+function openFind() { if (!cur) return; $('find').style.display = 'flex'; $('findQ').focus(); $('findQ').select(); }
+function closeFind() { if (getComputedStyle($('find')).display === 'none' && !findQ) return; findQ = ''; $('findQ').value = ''; $('find').style.display = 'none'; if (cur) render(); }
+$('findQ').oninput = (e) => { findQ = e.target.value.trim().toLowerCase(); render(); }; $('findX').onclick = closeFind;
+document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') { e.preventDefault(); openFind(); } });
 async function loadEmotes(c) {
   if (!c || emoList[c]) return; emoList[c] = [];
   const r = await get('emotes?channel=' + encodeURIComponent(c)).catch(() => []); emoList[c] = Array.isArray(r) ? r : [];
@@ -219,7 +268,7 @@ async function loadEmotes(c) {
 }
 async function loadBadges(c) { if (c && !badgeUrls[c]) { badgeUrls[c] = {}; badgeUrls[c] = await get('badges?channel=' + encodeURIComponent(c)).catch(() => ({})); if (c === cur) render(); } }
 async function openTab(c) {
-  cur = c; unread[c] = false; ments[c] = false; replyTo = null; $('reply').style.display = 'none'; if (S.settings.active !== c) save({ active: c }); loadBadges(c); loadEmotes(c); hideEmo();
+  cur = c; unreadN[c] = 0; ments[c] = false; behind = 0; $('jump').style.display = 'none'; closeFind(); replyTo = null; $('reply').style.display = 'none'; if (S.settings.active !== c) save({ active: c }); loadBadges(c); loadEmotes(c); hideEmo();
   if (c && !msgs[c]) { msgs[c] = []; const h = await get('history?channel=' + encodeURIComponent(c)); const have = new Set(msgs[c].map((x) => x.id)); msgs[c] = h.filter((x) => !have.has(x.id)).concat(msgs[c]); } drawTabs(); render(); drawModbar(true);
 }
 
@@ -342,13 +391,18 @@ $('setTop').onmousedown = (e) => {   // drag the window by its title bar
 }; $('closeSet').onclick = () => { $('settings').style.display = 'none'; }; 
 $('mentionSound').onchange = (e) => save({ mentionSound: e.target.checked }); $('mentionFlash').onchange = (e) => save({ mentionFlash: e.target.checked });
 $('mentionVol').oninput = (e) => { save({ mentionVolume: Number(e.target.value) }); $('mentionVolO').textContent = e.target.value + '%'; }; $('mentionVol').onchange = () => chime(true); $('testChime').onclick = () => chime(true);
+const parts = (v, fix) => String(v).split(/[,\n]+/).map((x) => fix(x.trim())).filter(Boolean);
+$('hlWords').onchange = (e) => save({ highlightWords: parts(e.target.value, (x) => x) }); $('muWords').onchange = (e) => save({ mutedWords: parts(e.target.value, (x) => x) }); $('muUsers').onchange = (e) => { save({ mutedUsers: parts(e.target.value, (x) => x.replace(/^@/, '').toLowerCase()) }); render(); };
+$('alertList').onchange = (e) => { const c = e.target.dataset.alert; if (!c) return; const set = new Set(S.settings.mutedAlerts || []); if (e.target.checked) set.delete(c); else set.add(c); save({ mutedAlerts: Array.from(set) }); };
+$('saveClient').onclick = async () => { const r = await post('clientid', { clientId: $('clientIdIn').value.trim() }); if (r.error) return toast(r.error); toast('Restarting. Log in again when it is back.'); $('settings').style.display = 'none'; setTimeout(() => location.reload(), 3500); };
 $('showTime').onchange = (e) => save({ showTime: e.target.checked }); $('altRows').onchange = (e) => save({ altRows: e.target.checked });
 $('fontOpts').onclick = (e) => { const o = e.target.closest('.opt'); if (o) save({ font: o.dataset.f }); };
 $('size').oninput = (e) => save({ size: Number(e.target.value) }); $('weight').oninput = (e) => save({ weight: Number(e.target.value) });
 $('themeBox').onclick = (e) => { const o = e.target.closest('.th'); if (o) save({ theme: o.dataset.t }); };
 document.querySelector('.layouts').onclick = (e) => { const o = e.target.closest('.opt'); if (o) { save({ layout: o.dataset.l }); drawTabs(); } };
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('settings').style.display = 'none'; hideCard(); hideEmo(); } });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('settings').style.display = 'none'; hideCard(); hideEmo(); closeFind(); } });
 const es = new EventSource('/events');
+es.onopen = () => { serverDown = false; drawConn(); }; es.onerror = () => { serverDown = true; drawConn(); };
 es.addEventListener('status', (e) => drawStatus(JSON.parse(e.data)));
 es.addEventListener('chat', (e) => addMsg(JSON.parse(e.data)));
 es.addEventListener('chatmod', (e) => { const m = JSON.parse(e.data), a = msgs[m.channel] || []; if (m.type === 'clear') msgs[m.channel] = []; else for (const x of a) if (m.type === 'delete' ? x.id === m.id : x.uid === m.uid) x.gone = true; if (m.channel === cur) render(); });

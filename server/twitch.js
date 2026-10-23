@@ -11,7 +11,7 @@ const MOD_SCOPES = ['user:read:moderated_channels', 'moderator:manage:banned_use
 const EMOTE_SCOPE = 'user:read:emotes';
 const SCOPES = CHAT_SCOPES.concat(MOD_SCOPES, [EMOTE_SCOPE]);
 const NOTICE_COLORS = ['primary', 'blue', 'green', 'orange', 'purple'];
-const DEFAULT_SETTINGS = { font: 'IMC Sans', size: 16, weight: 400, theme: 'forge', layout: 'horizontal', active: '', showTime: true, altRows: false, mentionSound: true, mentionVolume: 60, mentionFlash: true };
+const DEFAULT_SETTINGS = { font: 'IMC Sans', size: 16, weight: 400, theme: 'forge', layout: 'horizontal', active: '', showTime: true, altRows: false, mentionSound: true, mentionVolume: 60, mentionFlash: true, highlightWords: [], mutedUsers: [], mutedWords: [], mutedAlerts: [] };
 const FONTS = ['IMC Sans', 'IMC Serif', 'IMC Dyslexia', 'system'], THEMES = ['forge', 'midnight', 'ember', 'dusk', 'slate', 'moss', 'cream', 'paper', 'sky'];
 
 module.exports = function createTwitch(ctx) {
@@ -29,12 +29,16 @@ module.exports = function createTwitch(ctx) {
   const granted = () => (tokens && tokens.scopes) || [];
   const isMod = (c) => !!tokens && (c.id === tokens.user_id || mods.has(c.id));
   const status = () => ({ auth, login: tokens ? tokens.login : '', userId: tokens ? tokens.user_id : '', device: device && { code: device.user_code, url: device.verification_uri }, connected: ready,
-    channels: channels.map((c) => Object.assign({}, c, { mod: isMod(c) })), settings, needsModScopes: !!tokens && MOD_SCOPES.concat([EMOTE_SCOPE]).some((s) => !granted().includes(s)) });
+    channels: channels.map((c) => Object.assign({}, c, { mod: isMod(c) })), settings, clientId: ctx.clientId, customClient: !!ctx.customClient, needsModScopes: !!tokens && MOD_SCOPES.concat([EMOTE_SCOPE]).some((s) => !granted().includes(s)) });
   const changed = () => emit('status', status());
 
   // ---------------------------------------------------------------- settings
+  /** a list typed by the person: trimmed, de-duplicated, limited */
+  const list = (v, max, len, fix) => (Array.isArray(v) ? Array.from(new Set(v.map((x) => fix(String(x).trim().slice(0, len))).filter(Boolean))).slice(0, max) : null);
+  const login = (x) => x.replace(/^@/, '').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 25);
   function configure(b) {
     b = b || {};
+    for (const [k, max, len, fix] of [['highlightWords', 40, 40, (x) => x], ['mutedWords', 100, 40, (x) => x], ['mutedUsers', 300, 25, login], ['mutedAlerts', 100, 25, login]]) { const l = list(b[k], max, len, fix); if (l) settings[k] = l; }
     if (FONTS.includes(b.font)) settings.font = b.font;
     if (Number.isFinite(Number(b.size))) settings.size = Math.min(32, Math.max(11, Math.round(Number(b.size))));
     if ([100, 200, 300, 400, 500, 600, 700, 800, 900].includes(Number(b.weight))) settings.weight = Number(b.weight);
