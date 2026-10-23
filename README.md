@@ -9,6 +9,8 @@ A Twitch chat client for Windows, in the same style as [ItMeCasey Stream](https:
 
 ## What is in the window
 - **Chat:** emotes, Twitch badges (hover for the name), GIFs, replies, mention highlights, and the Twitch events: subs, resubs, gifts, raids, cheers, first messages and announcements (in their colour).
+- **Emote picker** (smile button left of Send): every emote you can use in that channel in one searchable list: the channel's own, ones you own from other channels, Twitch's, and 7TV / BetterTTV / FrankerFaceZ, in tabs. 7TV, BTTV and FFZ emotes also show in the chat.
+- **Tab completion** in the message box: `@` + Tab completes a recent chatter, a word + Tab completes an emote; Tab again for the next match, Shift+Tab for the previous.
 - **Hover a name** for a card: picture, badges, account age, bio (and the moderator buttons where you are a moderator).
 - **Tabs:** horizontal or vertical (settings), drag to reorder. Your channels, their order, the open tab and every setting are remembered between sessions.
 - **Settings (gear):** font (IMC Sans, IMC Serif, IMC Dyslexia or your system font), size, weight (Thin to Black), and 9 themes: Forge, Midnight, Ember (dark), Dusk, Slate, Moss (mid), Cream, Paper, Sky (light).

@@ -4,6 +4,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const createTwitch = require('./twitch.js');
+const thirdParty = require('./emotes.js')({ log: (...a) => console.log(...a) }).forChannel;
 
 const DATA = process.env.IMC_DATA || path.join(__dirname, 'data'), PORT = Number(process.env.IMC_PORT) || 8430, STARTED = Date.now();
 fs.mkdirSync(DATA, { recursive: true });
@@ -13,7 +14,7 @@ const log = (...a) => { const line = new Date().toISOString() + ' ' + a.join(' '
 
 const clients = new Set();
 function broadcast(event, data) { const s = 'event: ' + event + '\ndata: ' + JSON.stringify(data) + '\n\n'; for (const r of clients) { try { r.write(s); } catch (e) { clients.delete(r); } } }
-const twitch = createTwitch({ dir: DATA, clientId, log, emit: broadcast });
+const twitch = createTwitch({ dir: DATA, clientId, log, emit: broadcast, thirdParty });
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.png': 'image/png', '.ico': 'image/x-icon', '.ttf': 'font/ttf' };
 const json = (res, code, v) => { res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(v)); };
@@ -31,6 +32,7 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/health') return json(res, 200, { ok: true, light: twitch.status().connected ? 'green' : 'amber', uptime: Math.round((Date.now() - STARTED) / 1000) });
     if (p === '/api/status') return json(res, 200, twitch.status());
     if (p === '/api/badges') return json(res, 200, await twitch.badges(new URL(req.url, 'http://localhost').searchParams.get('channel')));
+    if (p === '/api/emotes') return json(res, 200, await twitch.emotes(new URL(req.url, 'http://localhost').searchParams.get('channel')).catch((e) => ({ error: e.message })));
     if (p === '/api/user') return json(res, 200, await twitch.userInfo(new URL(req.url, 'http://localhost').searchParams.get('id')).catch((e) => ({ error: e.message })));
     if (p === '/api/history') return json(res, 200, twitch.history(new URL(req.url, 'http://localhost').searchParams.get('channel')));
     if (req.method === 'POST' && p.startsWith('/api/')) {

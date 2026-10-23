@@ -8,7 +8,8 @@ const path = require('node:path');
 
 const CHAT_SCOPES = ['user:read:chat', 'user:write:chat'];
 const MOD_SCOPES = ['user:read:moderated_channels', 'moderator:manage:banned_users', 'moderator:manage:chat_messages', 'moderator:manage:chat_settings', 'moderator:read:chat_settings'];
-const SCOPES = CHAT_SCOPES.concat(MOD_SCOPES);
+const EMOTE_SCOPE = 'user:read:emotes';
+const SCOPES = CHAT_SCOPES.concat(MOD_SCOPES, [EMOTE_SCOPE]);
 const NOTICE_COLORS = ['primary', 'blue', 'green', 'orange', 'purple'];
 const DEFAULT_SETTINGS = { font: 'IMC Sans', size: 16, weight: 400, theme: 'forge', layout: 'horizontal', active: '' };
 const FONTS = ['IMC Sans', 'IMC Serif', 'IMC Dyslexia', 'system'], THEMES = ['forge', 'midnight', 'ember', 'dusk', 'slate', 'moss', 'cream', 'paper', 'sky'];
@@ -21,14 +22,14 @@ module.exports = function createTwitch(ctx) {
   const write = (f, v) => { try { fs.mkdirSync(ctx.dir, { recursive: true }); fs.writeFileSync(f, JSON.stringify(v, null, 2)); } catch (e) { log('could not save', path.basename(f), e.message); } };
   let tokens = read(TOK, null), channels = read(CH, []), settings = Object.assign({}, DEFAULT_SETTINGS, read(SET, {})), device = null, auth = { status: tokens ? 'ok' : 'none', message: tokens ? 'Logged in as ' + tokens.login : 'Not connected' };
   let ws = null, session = '', subs = new Map(), ready = false, ka = null, closed = false, mods = new Set(), modsAt = 0;   // subs: "type|channelId" -> subscription id
-  const history = new Map(), badgeCache = new Map(), userCache = new Map();   // badgeCache: 'global' or a channel id -> { 'set/version': { u: image, t: title } }
+  const emoteCache = new Map(), history = new Map(), badgeCache = new Map(), userCache = new Map();   // badgeCache: 'global' or a channel id -> { 'set/version': { u: image, t: title } }
 
   const form = (o) => new URLSearchParams(o).toString();
   async function idPost(ep, body) { const r = await doFetch(ID + ep, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form(body) }); return { ok: r.ok, status: r.status, json: await r.json().catch(() => ({})) }; }
   const granted = () => (tokens && tokens.scopes) || [];
   const isMod = (c) => !!tokens && (c.id === tokens.user_id || mods.has(c.id));
   const status = () => ({ auth, login: tokens ? tokens.login : '', userId: tokens ? tokens.user_id : '', device: device && { code: device.user_code, url: device.verification_uri }, connected: ready,
-    channels: channels.map((c) => Object.assign({}, c, { mod: isMod(c) })), settings, needsModScopes: !!tokens && MOD_SCOPES.some((s) => !granted().includes(s)) });
+    channels: channels.map((c) => Object.assign({}, c, { mod: isMod(c) })), settings, needsModScopes: !!tokens && MOD_SCOPES.concat([EMOTE_SCOPE]).some((s) => !granted().includes(s)) });
   const changed = () => emit('status', status());
 
   // ---------------------------------------------------------------- settings
@@ -99,6 +100,25 @@ module.exports = function createTwitch(ctx) {
     const r = await helix('GET', '/users?id=' + id), u = r.json.data && r.json.data[0]; if (!u) throw new Error('No such user');
     const v = { id: u.id, login: u.login, name: u.display_name, image: u.profile_image_url, bio: String(u.description || '').slice(0, 300), created: u.created_at, kind: u.broadcaster_type || '' };
     userCache.set(id, { at: now(), v }); return v;
+  }
+
+  // ---------------------------------------------------------------- the emote picker
+  async function pages(p) {   // follows Twitch's cursor
+    const out = []; let cursor = '';
+    for (let i = 0; i < 40; i++) { const r = await helix('GET', p + (cursor ? '&after=' + cursor : '')).catch(() => null); if (!r || !r.ok) break; out.push(...(r.json.data || [])); cursor = r.json.pagination && r.json.pagination.cursor; if (!cursor) break; }
+    return out;
+  }
+  const img = (e) => String((e.images && (e.images.url_2x || e.images.url_1x)) || '').replace('/static/light/', '/default/dark/');   // the dark-background, animated version
+  /** every emote you can type in a channel: its own, the ones you own from anywhere, Twitch's, and 7TV / BetterTTV / FrankerFaceZ. g: c channel, m yours, g Twitch, 7 b f the others */
+  async function emotes(channel) {
+    const c = channels.find((x) => x.login === clean(channel)); if (!c) throw new Error('Join that channel first');
+    const hit = emoteCache.get(c.id); if (hit && now() - hit.at < 600000) return hit.v;
+    const [chan, glob, mine, third] = await Promise.all([pages('/chat/emotes?broadcaster_id=' + c.id).catch(() => []), pages('/chat/emotes/global?x=1'), granted().includes(EMOTE_SCOPE) ? pages('/chat/emotes/user?user_id=' + tokens.user_id + '&broadcaster_id=' + c.id) : Promise.resolve([]),
+      ctx.thirdParty ? ctx.thirdParty(c.id).catch(() => []) : Promise.resolve([])]);
+    const out = [], seen = new Set(), add = (list, g, only) => { for (const e of list) if (e.name && img(e) && !seen.has(e.name) && (!only || only(e))) { seen.add(e.name); out.push({ n: e.name, u: img(e), g }); } };
+    if (mine.length) add(mine, 'c', (e) => e.owner_id === c.id); else add(chan, 'c');   // with the emote permission only the ones you can use are listed
+    add(glob, 'g'); add(mine, 'm'); for (const e of third) if (!seen.has(e.n)) { seen.add(e.n); out.push(e); }
+    emoteCache.set(c.id, { at: now(), v: out }); return out;
   }
 
   // ---------------------------------------------------------------- channels
@@ -213,5 +233,5 @@ module.exports = function createTwitch(ctx) {
     else throw new Error('Unknown action');
     if (!r.ok) throw new Error(r.json.message || 'Twitch refused that'); return { ok: true };
   }
-  return { startLogin, logout, join, leave, move, send, mod, connect: () => connect(), status, configure, badges, userInfo, loadMods, history: (ch) => (history.get(clean(ch)) || []).filter((m) => !m.gone), onEvent, stop: closeWs };
+  return { startLogin, logout, join, leave, move, send, mod, connect: () => connect(), status, configure, badges, emotes, userInfo, loadMods, history: (ch) => (history.get(clean(ch)) || []).filter((m) => !m.gone), onEvent, stop: closeWs };
 };

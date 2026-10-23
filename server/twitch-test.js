@@ -3,7 +3,7 @@
 const assert = require('assert'), fs = require('fs'), os = require('os'), path = require('path'), createTwitch = require('./twitch');
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'imc-')), events = [], subsMade = [], deleted = [], sent = [], calls = []; let polls = 0, wsLast = null;
-const ALL = ['user:read:chat', 'user:write:chat', 'user:read:moderated_channels', 'moderator:manage:banned_users', 'moderator:manage:chat_messages', 'moderator:manage:chat_settings', 'moderator:read:chat_settings'];
+const ALL = ['user:read:chat', 'user:write:chat', 'user:read:moderated_channels', 'moderator:manage:banned_users', 'moderator:manage:chat_messages', 'moderator:manage:chat_settings', 'moderator:read:chat_settings', 'user:read:emotes'];
 const users = { alice: { id: '11', login: 'alice', display_name: 'Alice', profile_image_url: 'https://x/a.png' }, mememe: { id: '99', login: 'mememe', display_name: 'Me' }, bobby: { id: '22', login: 'bobby', display_name: 'Bobby' } };
 const fake = async (url, opt) => {
   opt = opt || {}; const j = (v, st) => ({ ok: !st || st < 400, status: st || 200, json: async () => v }), u = url.replace('https://api.twitch.tv/helix', '').replace('https://id.twitch.tv/oauth2', '');
