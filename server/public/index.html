@@ -132,6 +132,8 @@
     <div class="row2" style="grid-template-columns:90px 1fr"><label>Ads</label><select id="ads"><option value="skip">Skip them: the picture pauses until the break is over</option><option value="show">Show them, muted (our own window only)</option></select></div>
     <div class="muted" id="plStyleNote"></div>
     <input id="playerPath" placeholder="Or a player program of your own (leave empty for automatic)" autocomplete="off" spellcheck="false" style="width:100%"></div>
+  <div class="sec" id="twSec" style="display:none"><h3>TWITCH'S OWN PLAYER</h3><div class="muted">Right-click a tab and choose <b>Watch in Twitch's player</b> to open Twitch's real web player in a window of this app. If you have Twitch Turbo, or you subscribe to the channel, you will not see ads once you are logged in there. It is a login of its own, not your browser's (browsers do not share them). It is the same one the <b>Connect Twitch</b> step uses when it opens its page inside the app, so if you connect from here you only log in once. The app never sees your password: you type it on Twitch's own page.</div>
+    <div class="muted" id="twState"></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="twLogin">Log in to Twitch here</button><button class="ghost" id="twLogout" style="display:none">Log out of it</button></div></div>
   <div class="sec"><h3>BACKUP</h3><div class="muted">Your channels and settings in one file (never your login). Use it to move to another PC or after a reinstall.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><a href="/api/export" download="imc-chat-backup.json"><button type="button" class="ghost">Export</button></a><button type="button" class="ghost" id="importBtn">Import</button><input type="file" id="importFile" accept=".json,application/json" style="display:none"></div></div>
   <div class="sec"><h3>TWITCH APP (ADVANCED)</h3><div class="muted" id="appNote"></div>
     <div class="muted">To use your own: on <b>dev.twitch.tv/console</b> choose Register Your Application: any name, OAuth redirect URL <b>http://localhost</b>, category Chat Bot, client type <b>Public</b>. Copy its Client ID here. You log in again afterwards.</div>
@@ -425,7 +427,7 @@ $('msg').addEventListener('keydown', (e) => {
 });
 
 // ---------------------------------------------------------------- wiring
-$('connect').onclick = async () => { const r = await post('login'); if (r.error) return ($('lmsg').textContent = r.error); drawStatus(r); if (r.device) window.open(r.device.url, '_blank'); };
+$('connect').onclick = async () => { const r = await post('login'); if (r.error) return ($('lmsg').textContent = r.error); drawStatus(r); if (r.device) { if (window.imcWindow && window.imcWindow.twitchLogin) window.imcWindow.twitchLogin(r.device.url); else window.open(r.device.url, '_blank'); } };   // in the app: the approval page opens in the app's own browser, so this login also covers Twitch's player
 $('reconnect').onclick = $('connect').onclick; $('logout').onclick = async () => { $('settings').style.display = 'none'; drawStatus(await post('logout')); };
 $('add').onsubmit = async (e) => { e.preventDefault(); const v = $('join').value.trim(); if (!v) return; const r = await post('join', { channel: v }); if (r.error) return toast(r.error); $('join').value = ''; drawStatus(r); openTab(r.channels[r.channels.length - 1].login); };
 $('tabs').onclick = async (e) => { const pw = e.target.closest('[data-pop]'); if (pw) return playIn(pw.dataset.pop); const x = e.target.dataset.x; if (x) { drawStatus(await post('leave', { channel: x })); return openTab(cur); } const t = e.target.closest('.tab'); if (t) openTab(t.dataset.c); };
@@ -448,7 +450,7 @@ $('bar').onsubmit = async (e) => {
   $('msg').value = ''; updateCnt(); replyTo = null; $('reply').style.display = 'none'; hideEmo();
 };
 function centerSettings() { const b = document.querySelector('#settings .box'); b.style.left = Math.max(0, (innerWidth - b.offsetWidth) / 2) + 'px'; b.style.top = Math.max(0, (innerHeight - b.offsetHeight) / 2) + 'px'; }
-$('gear').onclick = () => { playerInfo(); drawSettings(); $('settings').style.display = 'block'; centerSettings(); };
+$('gear').onclick = () => { twitchState(); playerInfo(); drawSettings(); $('settings').style.display = 'block'; centerSettings(); };
 $('setTop').onmousedown = (e) => {   // drag the window by its title bar
   if (e.target.closest('button')) return; const b = document.querySelector('#settings .box'), dx = e.clientX - b.offsetLeft, dy = e.clientY - b.offsetTop;
   const mv = (m) => { b.style.left = Math.min(innerWidth - 80, Math.max(-b.offsetWidth + 80, m.clientX - dx)) + 'px'; b.style.top = Math.min(innerHeight - 40, Math.max(0, m.clientY - dy)) + 'px'; };
@@ -461,6 +463,12 @@ $('hlWords').onchange = (e) => save({ highlightWords: parts(e.target.value, (x) 
 $('alertList').onchange = (e) => { const c = e.target.dataset.alert; if (!c) return; const set = new Set(S.settings.mutedAlerts || []); if (e.target.checked) set.delete(c); else set.add(c); save({ mutedAlerts: Array.from(set) }); };
 $('saveClient').onclick = async () => { const r = await post('clientid', { clientId: $('clientIdIn').value.trim() }); if (r.error) return toast(r.error); toast('Restarting. Log in again when it is back.'); $('settings').style.display = 'none'; setTimeout(() => location.reload(), 3500); };
 $('playerPref').onchange = async (e) => { save({ playerPref: e.target.value }); await new Promise((r) => setTimeout(r, 400)); playerInfo(); }; $('playerStyle').onchange = async (e) => { save({ playerStyle: e.target.value }); await new Promise((r) => setTimeout(r, 400)); playerInfo(); };
+async function twitchState() {
+  if (!(window.imcWindow && window.imcWindow.twitchStatus)) return; $('twSec').style.display = ''; const s = await window.imcWindow.twitchStatus().catch(() => ({}));
+  $('twState').textContent = s.loggedIn ? 'Logged in to Twitch in this app.' : 'Not logged in there yet.'; $('twLogin').textContent = s.loggedIn ? 'Open Twitch to check it' : 'Log in to Twitch here'; $('twLogout').style.display = s.loggedIn ? '' : 'none';
+}
+$('twLogin').onclick = async () => { await window.imcWindow.twitchLogin(''); toast('Log in in the window that opened, then close it.', true); setTimeout(twitchState, 15000); };
+$('twLogout').onclick = async () => { await window.imcWindow.twitchLogout(); twitchState(); toast('Logged out of it', true); };
 $('ads').onchange = (e) => save({ ads: e.target.value });
 $('playerPath').onchange = async (e) => { save({ playerPath: e.target.value.trim() }); await new Promise((r) => setTimeout(r, 400)); playerInfo(); };
 $('recentHistory').onchange = (e) => save({ recentHistory: e.target.checked });
@@ -502,7 +510,7 @@ function rowMenu(e, row) {
 }
 function tabMenu(e, login) {
   const c = chan(login), q = quiet(login); if (!c) return;
-  showCtx(e.clientX, e.clientY, [{ label: 'Watch in ' + (playerName || 'a video player'), fn: () => playIn(login) }, { label: 'Popout with the stream', fn: () => popOut(login, true) }, { label: 'Popout chat only', fn: () => popOut(login, false) }, { label: 'Open on twitch.tv', fn: () => window.open('https://www.twitch.tv/' + login, '_blank') },
+  showCtx(e.clientX, e.clientY, [{ label: 'Watch in ' + (playerName || 'a video player'), fn: () => playIn(login) }, ...(window.imcWindow && window.imcWindow.twitchPlayer ? [{ label: 'Watch in Twitch\'s player (your login, no ads for Turbo/subs)', fn: () => window.imcWindow.twitchPlayer(login) }] : []), { label: 'Popout with the stream', fn: () => popOut(login, true) }, { label: 'Popout chat only', fn: () => popOut(login, false) }, { label: 'Open on twitch.tv', fn: () => window.open('https://www.twitch.tv/' + login, '_blank') },
     { label: q ? 'Turn alerts on' : 'Mute alerts for ' + c.name, fn: () => { const set = new Set(S.settings.mutedAlerts || []); if (q) set.delete(login); else set.add(login); save({ mutedAlerts: Array.from(set) }); toast(q ? 'Alerts on for ' + c.name : 'Alerts muted for ' + c.name, true); } },
     '-', { label: 'Leave ' + c.name, danger: true, fn: async () => { drawStatus(await post('leave', { channel: login })); openTab(cur); } }]);
 }

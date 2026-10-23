@@ -1,6 +1,6 @@
 'use strict';
 /** IMC-Chat: the desktop app. Runs the local chat server in the background, shows the chat window, lives in the tray. */
-const { app, BrowserWindow, Tray, Menu, nativeImage, shell, ipcMain } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage, shell, ipcMain, session } = require('electron');
 const fs = require('node:fs'), path = require('node:path');
 const createSupervisor = require('./supervisor.js');
 const createVlcWindows = require('./vlcwindow.js');
@@ -62,6 +62,24 @@ app.on('web-contents-created', (e, wc) => {
 // the player window: VLC drawn inside our own resizable window, with our own controls
 let vlcWindows = null;
 function chatPopout(login) { const w = new BrowserWindow({ width: 480, height: 760, minWidth: 360, minHeight: 360, autoHideMenuBar: true, backgroundColor: '#222A2A', icon: icon('icon.png') }); w.loadURL(url() + '?popout=' + encodeURIComponent(login)); }
+// Twitch's own player in a window of ours. It has a browser profile of its own (kept between runs), so you log in to Twitch once, in that window:
+// Turbo or a subscription then means no ads. The app never sees the login: it only shows Twitch's pages and can tell whether the login cookie is there.
+const TWITCH_PARTITION = 'persist:imc-twitch', twitchHost = (u) => { try { const h = new URL(u).hostname; return h === 'twitch.tv' || h.endsWith('.twitch.tv') || h.endsWith('.ttvnw.net') || h.endsWith('.jtvnw.net'); } catch (e) { return false; } };
+function twitchWindow(opts, first) {
+  const w = new BrowserWindow(Object.assign({ autoHideMenuBar: true, backgroundColor: '#000000', icon: icon('icon.png'), webPreferences: { partition: TWITCH_PARTITION, contextIsolation: true, sandbox: true } }, opts));
+  w.webContents.setWindowOpenHandler(({ url: u }) => { if (twitchHost(u)) return { action: 'allow' }; if (/^https?:\/\//.test(u)) shell.openExternal(u); return { action: 'deny' }; });
+  w.webContents.on('will-navigate', (ev, u) => { if (!twitchHost(u)) { ev.preventDefault(); if (/^https?:\/\//.test(u)) shell.openExternal(u); } });
+  w.loadURL(first); return w;
+}
+const twitchSession = () => session.fromPartition(TWITCH_PARTITION);
+ipcMain.handle('twitch:player', (e, login) => {
+  const c = String(login || '').toLowerCase(); if (!/^[a-z0-9_]{3,25}$/.test(c)) return { error: 'Unknown channel' };
+  twitchWindow({ width: 1100, height: 640, minWidth: 420, minHeight: 260, title: '#' + c + ' - Twitch' }, 'https://player.twitch.tv/?channel=' + c + '&parent=twitch.tv&muted=false'); return { ok: true };
+});
+// with an address (the page that approves IMC-Chat's login code) it opens that page, so connecting the chat and logging in for the player are one login
+ipcMain.handle('twitch:login', (e, target) => { const first = typeof target === 'string' && /^https:\/\//.test(target) && twitchHost(target) ? target : 'https://www.twitch.tv/login'; twitchWindow({ width: 560, height: 800, title: 'Log in to Twitch' }, first); return { ok: true }; });
+ipcMain.handle('twitch:status', async () => { try { return { loggedIn: (await twitchSession().cookies.get({ name: 'auth-token' })).length > 0 }; } catch (err) { return { loggedIn: false }; } });
+ipcMain.handle('twitch:logout', async () => { try { await twitchSession().clearStorageData(); return { ok: true }; } catch (err) { return { error: err.message }; } });
 ipcMain.handle('player:watch', async (e, login, opt) => {
   vlcWindows = vlcWindows || createVlcWindows({ url, icon: icon('icon.png'), preload: path.join(__dirname, 'player-preload.js'), log, openChat: chatPopout, locate: require(path.join(SERVER_DIR, 'player.js'))({}).locate });
   try { return await vlcWindows.watch(login, opt && { playerPath: String(opt.playerPath || ''), quality: 'best', ads: opt.ads === 'show' ? 'show' : 'skip' }); } catch (err) { return { error: err.message }; }
