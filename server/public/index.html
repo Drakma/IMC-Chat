@@ -123,8 +123,12 @@
     <label class="muted">Alerts (sound, flash, taskbar) per channel</label><div id="alertList" style="display:grid;gap:6px"></div></div>
   <div class="sec"><h3>THEME</h3><div id="themeBox"></div></div>
   <div class="sec"><h3>ACCOUNT</h3><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><span class="muted" id="acct" style="flex:1"></span><button class="ghost" id="logout">Log out</button></div></div>
-  <div class="sec"><h3>VIDEO PLAYER</h3><div class="muted">Watch a channel in VLC or mpv instead of the built-in player (right-click a tab, or the button in a popout). It uses Streamlink to fetch the stream: install it once with <b>winget install Streamlink.Streamlink</b>.</div><div class="muted" id="plInfo"></div><div id="plInstall" style="display:none;gap:10px;align-items:center;flex-wrap:wrap"><button id="plInstallBtn">Install Streamlink</button><a class="muted" href="https://streamlink.github.io/install.html#windows" target="_blank" rel="noopener">or download it yourself</a></div>
-    <input id="playerPath" placeholder="Player program (leave empty to use VLC or mpv automatically)" autocomplete="off" spellcheck="false" style="width:100%"></div>
+  <div class="sec"><h3>VIDEO PLAYER</h3><div class="muted">Watch a channel in VLC or mpv instead of the built-in player (right-click a tab, or the button in a popout). It uses Streamlink to fetch the stream: install it once with <b>winget install Streamlink.Streamlink</b>.</div><div class="muted" id="plInfo"></div>
+    <div id="plInstall" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button id="plInstallBtn" style="display:none">Install Streamlink</button><a id="plDl" class="muted" style="display:none" href="https://streamlink.github.io/install.html#windows" target="_blank" rel="noopener">or download it yourself</a><button id="plInstallMpv" class="ghost" style="display:none">Install mpv (hover controls)</button></div>
+    <div class="row2" style="grid-template-columns:90px 1fr"><label>Player</label><select id="playerPref"><option value="">Automatic (VLC, then mpv)</option><option value="vlc">VLC</option><option value="mpv">mpv</option></select></div>
+    <div class="row2" style="grid-template-columns:90px 1fr"><label>Window</label><select id="playerStyle"><option value="chromeless">Chromeless: no window frame, always on top</option><option value="normal">A normal player window</option></select></div>
+    <div class="muted" id="plStyleNote"></div>
+    <input id="playerPath" placeholder="Or a player program of your own (leave empty for automatic)" autocomplete="off" spellcheck="false" style="width:100%"></div>
   <div class="sec"><h3>BACKUP</h3><div class="muted">Your channels and settings in one file (never your login). Use it to move to another PC or after a reinstall.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><a href="/api/export" download="imc-chat-backup.json"><button type="button" class="ghost">Export</button></a><button type="button" class="ghost" id="importBtn">Import</button><input type="file" id="importFile" accept=".json,application/json" style="display:none"></div></div>
   <div class="sec"><h3>TWITCH APP (ADVANCED)</h3><div class="muted" id="appNote"></div>
     <div class="muted">To use your own: on <b>dev.twitch.tv/console</b> choose Register Your Application: any name, OAuth redirect URL <b>http://localhost</b>, category Chat Bot, client type <b>Public</b>. Copy its Client ID here. You log in again afterwards.</div>
@@ -179,7 +183,7 @@ function drawSettings() {
   setList('hlWords', s.highlightWords); setList('muUsers', s.mutedUsers); setList('muWords', s.mutedWords);
   $('alertList').innerHTML = S.channels.length ? S.channels.map((c) => '<label class="tgl"><input type="checkbox" data-alert="' + esc(c.login) + '"' + ((s.mutedAlerts || []).includes(c.login) ? '' : ' checked') + '> Alerts for ' + esc(c.name) + '</label>').join('') : '<span class="muted">Join a channel first.</span>';
   $('appNote').textContent = S.customClient ? 'Using your own Twitch app (' + S.clientId + ').' : 'Using the shared IMC-Chat app. That works fine; your own app is only needed if you want the login screen and limits to be yours alone.';
-  $('acct').textContent = 'Logged in as ' + S.login + '. Your channels and settings stay on this PC.'; $('recentHistory').checked = !!s.recentHistory; if (document.activeElement !== $('playerPath')) $('playerPath').value = s.playerPath || ''; $('compact').checked = s.compact !== false; $('showTime').checked = s.showTime !== false; $('altRows').checked = !!s.altRows;
+  $('acct').textContent = 'Logged in as ' + S.login + '. Your channels and settings stay on this PC.'; $('recentHistory').checked = !!s.recentHistory; if (document.activeElement !== $('playerPath')) $('playerPath').value = s.playerPath || ''; $('playerPref').value = s.playerPref || ''; $('playerStyle').value = s.playerStyle || 'chromeless'; $('compact').checked = s.compact !== false; $('showTime').checked = s.showTime !== false; $('altRows').checked = !!s.altRows;
   document.querySelectorAll('.layouts .opt').forEach((o) => o.classList.toggle('on', o.dataset.l === s.layout));
 }
 let saveT = null; function save(b) { Object.assign(S.settings, b); applySettings(S.settings); clearTimeout(saveT); saveT = setTimeout(() => post('settings', S.settings), 250); }
@@ -207,12 +211,21 @@ function drawPop() {
 }
 $('popVideo').onclick = () => { watching = !watching; drawPop(); };
 let playerName = '';
-async function playerInfo() { const i = await post('playerinfo').catch(() => ({})); playerName = i.player || ''; const el = $('plInfo'); if (el) el.textContent = i.installing ? 'Installing Streamlink... Windows may ask for permission; this can take a minute.' : 'Streamlink: ' + (i.streamlink ? 'found' : 'not found') + '. Player: ' + (i.player || 'none found') + '.' + (i.installError ? ' Install failed: ' + i.installError : '');
-  const ib = $('plInstall'); if (ib) { ib.style.display = i.streamlink ? 'none' : 'flex'; $('plInstallBtn').disabled = !!i.installing; $('plInstallBtn').textContent = i.installing ? 'Installing...' : 'Install Streamlink'; }
-  if (i.installing && !playerInfo.poll) playerInfo.poll = setTimeout(() => { playerInfo.poll = null; playerInfo(); }, 3000); const b = $('popPlayer'); if (b) b.textContent = 'Open in ' + (playerName || 'player'); return i; }
+async function playerInfo() {
+  const i = await post('playerinfo').catch(() => ({})); playerName = i.player || '';
+  const el = $('plInfo'); if (el) el.textContent = i.installing ? 'Installing ' + (i.installing === 'mpv' ? 'mpv' : 'Streamlink') + '... Windows may ask for permission; this can take a minute.' : 'Streamlink: ' + (i.streamlink ? 'found' : 'not found') + '. Player: ' + (i.player || 'none found') + (i.mpv ? ' (mpv is installed)' : '') + '.' + (i.installError ? ' Install failed: ' + i.installError : '');
+  const sb = $('plInstallBtn'), mb = $('plInstallMpv'); if (sb) {
+    sb.style.display = i.streamlink ? 'none' : ''; $('plDl').style.display = i.streamlink ? 'none' : ''; sb.disabled = !!i.installing; sb.textContent = i.installing === 'streamlink' ? 'Installing...' : 'Install Streamlink';
+    mb.style.display = i.mpv ? 'none' : ''; mb.disabled = !!i.installing; mb.textContent = i.installing === 'mpv' ? 'Installing...' : 'Install mpv (hover controls)';
+    $('plStyleNote').textContent = (cfgs().playerStyle || 'chromeless') === 'normal' ? '' : (i.kind === 'mpv' ? 'mpv opens without its frame; move the mouse over the video for its controls, drag to move the window.' : i.kind === 'vlc' ? 'VLC opens without its frame and without its interface (VLC only shows on-video controls in fullscreen). Space pauses, M mutes, the mouse wheel sets the volume, double-click is fullscreen, Esc closes fullscreen. For hover controls choose mpv.' : '');
+  }
+  if (i.installing && !playerInfo.poll) playerInfo.poll = setTimeout(() => { playerInfo.poll = null; playerInfo(); }, 3000);
+  const b = $('popPlayer'); if (b) b.textContent = 'Open in ' + (playerName || 'player'); if (S && !POP) drawTabs(); return i;
+}
 async function playIn(login) { toast('Starting ' + (playerName || 'the player') + '...', true); const r = await post('play', { channel: login }).catch(() => ({ error: 'Could not reach the app' })); if (r.error) toast(r.error); else toast('Opened in ' + r.player, true); }
 $('popPlayer').onclick = () => playIn(POP);
-$('plInstallBtn').onclick = async () => { const r = await post('streamlink').catch(() => ({ error: 'Could not reach the app' })); if (r.error) toast(r.error); await playerInfo(); };
+$('plInstallBtn').onclick = async () => { const r = await post('streamlink', { what: 'streamlink' }).catch(() => ({ error: 'Could not reach the app' })); if (r.error) toast(r.error); await playerInfo(); };
+$('plInstallMpv').onclick = async () => { const r = await post('streamlink', { what: 'mpv' }).catch(() => ({ error: 'Could not reach the app' })); if (r.error) toast(r.error); await playerInfo(); };
 function popOut(login, watch) { window.open('/?popout=' + encodeURIComponent(login) + (watch ? '&watch=1' : ''), '_blank', 'popup,width=' + (watch ? 1180 : 480) + ',height=760'); }
 let serverDown = false;
 function drawConn() {
@@ -222,7 +235,7 @@ function drawConn() {
 }
 const chan = (l) => (S ? S.channels.find((c) => c.login === l) : null);
 function drawTabs() {
-  const tabs = S.channels.map((c) => '<div class="tab' + (c.login === cur ? ' on' : '') + (unreadN[c.login] ? ' new' : '') + (ments[c.login] ? ' ment' : '') + '" draggable="true" data-c="' + esc(c.login) + '">' + (safe(c.image) ? '<img class="av" src="' + safe(c.image) + '" alt="">' : '<span class="av"></span>') + '<span class="nm"' + (c.live ? ' data-tip="' + esc('LIVE \u00b7 ' + c.live.viewers.toLocaleString() + ' viewers' + (c.live.game ? ' \u00b7 ' + c.live.game : '') + (c.live.title ? ' - ' + c.live.title : '')) + '"' : '') + '>' + esc(c.name) + '</span>' + (c.live ? '<span class="lv">LIVE</span>' : '') + '<span class="dot">' + (unreadN[c.login] > 99 ? '99+' : unreadN[c.login] || '') + '</span>' + (c.mod ? '<span class="sw" data-tip="You are a moderator here">' + svg('sword') + '</span>' : '') + '<span class="pw" data-pop="' + esc(c.login) + '" data-tip="Watch in a popout">' + svg('play') + '</span><span class="x" data-x="' + esc(c.login) + '">&#10005;</span></div>').join('');
+  const tabs = S.channels.map((c) => '<div class="tab' + (c.login === cur ? ' on' : '') + (unreadN[c.login] ? ' new' : '') + (ments[c.login] ? ' ment' : '') + '" draggable="true" data-c="' + esc(c.login) + '">' + (safe(c.image) ? '<img class="av" src="' + safe(c.image) + '" alt="">' : '<span class="av"></span>') + '<span class="nm"' + (c.live ? ' data-tip="' + esc('LIVE \u00b7 ' + c.live.viewers.toLocaleString() + ' viewers' + (c.live.game ? ' \u00b7 ' + c.live.game : '') + (c.live.title ? ' - ' + c.live.title : '')) + '"' : '') + '>' + esc(c.name) + '</span>' + (c.live ? '<span class="lv">LIVE</span>' : '') + '<span class="dot">' + (unreadN[c.login] > 99 ? '99+' : unreadN[c.login] || '') + '</span>' + (c.mod ? '<span class="sw" data-tip="You are a moderator here">' + svg('sword') + '</span>' : '') + '<span class="pw" data-pop="' + esc(c.login) + '" data-tip="' + esc(playerName ? 'Watch in ' + playerName : 'Watch in a video player') + '">' + svg('play') + '</span><span class="x" data-x="' + esc(c.login) + '">&#10005;</span></div>').join('');
   $('tablist').innerHTML = tabs;   // the join box is not part of this list, so it keeps its focus while chat moves
   const has = !!cur; $('empty').style.display = has ? 'none' : ''; $('logwrap').style.display = has ? 'flex' : 'none'; $('bar').style.display = has ? 'flex' : 'none'; $('msg').placeholder = has ? 'Send a message to ' + cur : '';
 }
@@ -421,7 +434,7 @@ $('msg').addEventListener('keydown', (e) => {
 $('connect').onclick = async () => { const r = await post('login'); if (r.error) return ($('lmsg').textContent = r.error); drawStatus(r); if (r.device) window.open(r.device.url, '_blank'); };
 $('reconnect').onclick = $('connect').onclick; $('logout').onclick = async () => { $('settings').style.display = 'none'; drawStatus(await post('logout')); };
 $('add').onsubmit = async (e) => { e.preventDefault(); const v = $('join').value.trim(); if (!v) return; const r = await post('join', { channel: v }); if (r.error) return toast(r.error); $('join').value = ''; drawStatus(r); openTab(r.channels[r.channels.length - 1].login); };
-$('tabs').onclick = async (e) => { const pw = e.target.closest('[data-pop]'); if (pw) return popOut(pw.dataset.pop, true); const x = e.target.dataset.x; if (x) { drawStatus(await post('leave', { channel: x })); return openTab(cur); } const t = e.target.closest('.tab'); if (t) openTab(t.dataset.c); };
+$('tabs').onclick = async (e) => { const pw = e.target.closest('[data-pop]'); if (pw) return playIn(pw.dataset.pop); const x = e.target.dataset.x; if (x) { drawStatus(await post('leave', { channel: x })); return openTab(cur); } const t = e.target.closest('.tab'); if (t) openTab(t.dataset.c); };
 let dragC = ''; $('tabs').ondragstart = (e) => { const t = e.target.closest('.tab'); if (t) dragC = t.dataset.c; };
 $('tabs').ondragover = (e) => { const t = e.target.closest('.tab'); if (t && dragC) { e.preventDefault(); document.querySelectorAll('.tab.drop').forEach((x) => x.classList.remove('drop')); t.classList.add('drop'); } };
 $('tabs').ondrop = async (e) => { const t = e.target.closest('.tab'); if (t && dragC && t.dataset.c !== dragC) { e.preventDefault(); drawStatus(await post('move', { channel: dragC, to: S.channels.findIndex((c) => c.login === t.dataset.c) })); } dragC = ''; document.querySelectorAll('.tab.drop').forEach((x) => x.classList.remove('drop')); };
@@ -453,6 +466,7 @@ const parts = (v, fix) => String(v).split(/[,\n]+/).map((x) => fix(x.trim())).fi
 $('hlWords').onchange = (e) => save({ highlightWords: parts(e.target.value, (x) => x) }); $('muWords').onchange = (e) => save({ mutedWords: parts(e.target.value, (x) => x) }); $('muUsers').onchange = (e) => { save({ mutedUsers: parts(e.target.value, (x) => x.replace(/^@/, '').toLowerCase()) }); render(); };
 $('alertList').onchange = (e) => { const c = e.target.dataset.alert; if (!c) return; const set = new Set(S.settings.mutedAlerts || []); if (e.target.checked) set.delete(c); else set.add(c); save({ mutedAlerts: Array.from(set) }); };
 $('saveClient').onclick = async () => { const r = await post('clientid', { clientId: $('clientIdIn').value.trim() }); if (r.error) return toast(r.error); toast('Restarting. Log in again when it is back.'); $('settings').style.display = 'none'; setTimeout(() => location.reload(), 3500); };
+$('playerPref').onchange = async (e) => { save({ playerPref: e.target.value }); await new Promise((r) => setTimeout(r, 400)); playerInfo(); }; $('playerStyle').onchange = async (e) => { save({ playerStyle: e.target.value }); await new Promise((r) => setTimeout(r, 400)); playerInfo(); };
 $('playerPath').onchange = async (e) => { save({ playerPath: e.target.value.trim() }); await new Promise((r) => setTimeout(r, 400)); playerInfo(); };
 $('recentHistory').onchange = (e) => save({ recentHistory: e.target.checked });
 $('importBtn').onclick = () => $('importFile').click();
@@ -487,7 +501,7 @@ function rowMenu(e, row) {
 }
 function tabMenu(e, login) {
   const c = chan(login), q = quiet(login); if (!c) return;
-  showCtx(e.clientX, e.clientY, [{ label: 'Watch in a popout', fn: () => popOut(login, true) }, { label: 'Pop out the chat only', fn: () => popOut(login, false) }, { label: 'Open in ' + (playerName || 'a video player'), fn: () => playIn(login) }, { label: 'Open on twitch.tv', fn: () => window.open('https://www.twitch.tv/' + login, '_blank') },
+  showCtx(e.clientX, e.clientY, [{ label: 'Watch in ' + (playerName || 'a video player'), fn: () => playIn(login) }, { label: 'Popout with the stream', fn: () => popOut(login, true) }, { label: 'Popout chat only', fn: () => popOut(login, false) }, { label: 'Open on twitch.tv', fn: () => window.open('https://www.twitch.tv/' + login, '_blank') },
     { label: q ? 'Turn alerts on' : 'Mute alerts for ' + c.name, fn: () => { const set = new Set(S.settings.mutedAlerts || []); if (q) set.delete(login); else set.add(login); save({ mutedAlerts: Array.from(set) }); toast(q ? 'Alerts on for ' + c.name : 'Alerts muted for ' + c.name, true); } },
     '-', { label: 'Leave ' + c.name, danger: true, fn: async () => { drawStatus(await post('leave', { channel: login })); openTab(cur); } }]);
 }
