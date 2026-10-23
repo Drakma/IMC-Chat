@@ -15,7 +15,7 @@
   header > * { -webkit-app-region: no-drag; } header h1 { -webkit-app-region: drag; }
   h1 { font-size: 1.1em; letter-spacing: 5px; font-weight: 800; } header .sp { flex: 1; } #who { font-size: 1.1em; font-weight: 800; letter-spacing: 2px; color: var(--accent); } #dash { color: var(--muted); font-weight: 800; }
   /* the gear is one of the window's own buttons: same width, full header height, same hover */
-  button.sysbtn { width: 46px; height: 100%; padding: 0; background: transparent; color: var(--text); outline: 0; border-radius: 0; } button.sysbtn:hover { background: color-mix(in srgb, var(--text) 14%, transparent); filter: none; } button.sysbtn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.2; }
+  #ver { font-size: .62em; color: var(--muted); letter-spacing: 1px; margin-right: 6px; } button.sysbtn { width: 46px; height: 100%; padding: 0; background: transparent; color: var(--text); outline: 0; border-radius: 0; } button.sysbtn:hover { background: color-mix(in srgb, var(--text) 14%, transparent); filter: none; } button.sysbtn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.2; }
   :root { --bh: 34px; }
   button { font: inherit; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; font-size: .72em; height: var(--bh); padding: 0 14px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; border: 0; cursor: pointer; background: var(--accent2); color: var(--on); } button:hover { filter: brightness(1.1); }
   button.ghost { background: transparent; color: var(--text); outline: 2px solid var(--line); } button.ghost:hover { outline-color: var(--accent); } button.ic { width: var(--bh); padding: 0; } button:disabled { opacity: .5; cursor: default; }
@@ -26,12 +26,13 @@
   #banner { display: none; background: var(--accent2); color: var(--on); padding: 8px 18px; font-size: .85em; gap: 12px; align-items: center; flex: none; } #banner button { background: var(--on); color: var(--text); }
   #shell { flex: 1; display: flex; flex-direction: column; min-height: 0; } body.vertical #shell { flex-direction: row; }
   #tabs { display: flex; background: var(--panel); overflow-x: auto; flex: none; border-bottom: 1px solid var(--line); align-items: flex-end; padding: 6px 12px 0; gap: 2px; }
-  body.vertical #tabs { flex-direction: column; width: 210px; overflow-y: auto; overflow-x: hidden; border-bottom: 0; border-right: 1px solid var(--line); padding: 8px 0; align-items: stretch; gap: 0; }
+  body.vertical #tabs { flex-direction: column; width: var(--rail, 210px); overflow-y: auto; overflow-x: hidden; border-bottom: 0; border-right: 1px solid var(--line); padding: 8px 0; align-items: stretch; gap: 0; }
   .tab { padding: 8px 14px; background: var(--panel2); cursor: pointer; font-size: .9em; white-space: nowrap; display: flex; gap: 8px; align-items: center; border-top: 3px solid transparent; position: relative; }
   body.vertical .tab { border-top: 0; border-left: 4px solid transparent; padding: 9px 12px; background: transparent; } .tab:hover { background: var(--hover); }
   .tab.on { background: var(--bg); border-color: var(--accent); font-weight: 700; } body.vertical .tab.on { background: var(--bg); border-left-color: var(--accent); } .tab .nm { overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; } .tab .sw, .tab .x { margin-left: auto; } .tab .sw + .x { margin-left: 0; } .tab .x { color: var(--muted); font-size: .8em; opacity: 0; } .tab:hover .x { opacity: 1; } .tab .x:hover { color: var(--danger); }
   .tab .dot { display: none; flex: none; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--accent2); color: var(--on); font-size: .68em; font-weight: 800; align-items: center; justify-content: center; } .tab.new .dot { display: inline-flex; } .tab.ment .dot { background: var(--danger); color: #fff; } .tab.drop { box-shadow: inset 3px 0 0 var(--accent); } .tab .av { width: 22px; height: 22px; border-radius: 50%; flex: none; background: var(--line); object-fit: cover; } .tab .sw { color: var(--accent2); }
   #add { display: flex; gap: 6px; padding: 0 0 6px 12px; margin-left: auto; flex: none; } #add input { width: 170px; font-size: .85em; } body.vertical #add { margin: 8px 10px 4px; padding: 0; order: -1; } body.vertical #add input { flex: 1; width: auto; }
+  #rail { display: none; width: 6px; margin-left: -3px; flex: none; cursor: col-resize; z-index: 4; background: transparent; position: relative; } #rail:hover, #rail.drag { background: var(--accent); opacity: .7; } body.vertical:not(.pop) #rail { display: block; }
   main { flex: 1; display: flex; min-height: 0; } #chatcol { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   #logwrap { flex: 1; min-height: 0; position: relative; display: none; flex-direction: column; } #log { flex: 1; overflow-y: auto; padding: 10px 16px; line-height: 1.45; }
   #find { display: none; gap: 8px; padding: 8px 16px; background: var(--panel2); border-bottom: 1px solid var(--line); align-items: center; } #find input { flex: 1; }
@@ -44,7 +45,7 @@
   @keyframes pop { from { box-shadow: inset 0 0 0 100px color-mix(in srgb, var(--accent2) 45%, transparent); } to { box-shadow: inset 0 0 0 100px transparent; } } .m.ment.fresh { animation: pop 1.6s ease-out; }
   /* roomy: with the slim layout off, everything gets more space */
   body:not(.compact) #log { padding: 18px 28px; line-height: 1.7; } body:not(.compact) .m { padding: 7px 12px; margin-bottom: 2px; } body:not(.compact) .m.ment, body:not(.compact) .m.cheer { padding-left: 14px; } body:not(.compact) .m .t { margin-right: 10px; } body:not(.compact) .m img.bd { margin-right: 5px; } body:not(.compact) .m img.e { margin: -.3em 3px; }
-  body:not(.compact) .ev { margin: 12px 0; padding: 14px 18px; gap: 14px; } body:not(.compact) .tab { padding: 13px 20px; gap: 11px; } body:not(.compact).vertical .tab { padding: 14px 18px; } body:not(.compact) #tabs { padding-top: 10px; } body:not(.compact).vertical #tabs { padding: 12px 0; width: 240px; } body:not(.compact) #add { padding-bottom: 10px; padding-left: 18px; }
+  body:not(.compact) .ev { margin: 12px 0; padding: 14px 18px; gap: 14px; } body:not(.compact) .tab { padding: 13px 20px; gap: 11px; } body:not(.compact).vertical .tab { padding: 14px 18px; } body:not(.compact) #tabs { padding-top: 10px; } body:not(.compact).vertical #tabs { padding: 12px 0; width: var(--rail, 240px); } body:not(.compact) #add { padding-bottom: 10px; padding-left: 18px; }
   body:not(.compact) #bar { padding: 16px 26px; gap: 12px; } body:not(.compact) #modbar { padding: 12px 26px; gap: 10px; } body:not(.compact) #find { padding: 12px 26px; } body:not(.compact) #banner { padding: 12px 26px; } body:not(.compact) header { padding-left: 26px; }
   body:not(.compact) #settings .sec { padding: 22px 28px; gap: 16px; } body:not(.compact) #card .bodyc { padding: 18px 20px; gap: 14px; } body:not(.compact) #emoGrid { padding: 14px; gap: 8px; } body:not(.compact) #emoTabs { padding: 12px; gap: 6px; }
   .tab .pw { margin-left: auto; opacity: 0; display: flex; color: var(--muted); font-size: .9em; } .tab:hover .pw { opacity: 1; } .tab .pw:hover { color: var(--accent); } .tab .sw + .pw { margin-left: 0; } .tab .pw + .x { margin-left: 0; }
@@ -98,11 +99,12 @@
   .th { border: 2px solid var(--line); cursor: pointer; overflow: hidden; } .th.on { border-color: var(--accent); outline: 2px solid var(--accent); } .th .sw { height: 46px; display: flex; align-items: flex-end; padding: 6px 8px; gap: 4px; } .th .sw i { width: 14px; height: 14px; display: block; } .th .nm { padding: 5px 8px; font-size: .78em; font-weight: 700; background: var(--panel2); font-family: "Segoe UI", sans-serif; }
 </style></head>
 <body>
-<header><h1>IMC-CHAT</h1><span id="dash">-</span><span id="who"></span><span id="conn"></span><span class="sp"></span><button class="sysbtn" id="gear" title="Settings" style="display:none"><svg viewBox="0 0 24 24"><path d="M12 15.500a3.500 3.500 0 1 0 0-7 3.500 3.500 0 0 0 0 7z"/><path d="M19.400 13a7.600 7.600 0 0 0 0-2l2-1.600-2-3.400-2.400.9a7.500 7.500 0 0 0-1.700-1L15 3.300h-4l-.3 2.600a7.500 7.500 0 0 0-1.700 1l-2.400-.9-2 3.400L6.600 11a7.600 7.600 0 0 0 0 2l-2 1.600 2 3.400 2.400-.9a7.500 7.500 0 0 0 1.700 1l.3 2.600h4l.3-2.600a7.500 7.500 0 0 0 1.700-1l2.400.9 2-3.400z"/></svg></button></header>
+<header><h1>IMC-CHAT</h1><span id="dash">-</span><span id="who"></span><span id="conn"></span><span class="sp"></span><span id="ver"></span><button class="sysbtn" id="gear" title="Settings" style="display:none"><svg viewBox="0 0 24 24"><path d="M12 15.500a3.500 3.500 0 1 0 0-7 3.500 3.500 0 0 0 0 7z"/><path d="M19.400 13a7.600 7.600 0 0 0 0-2l2-1.600-2-3.400-2.400.9a7.500 7.500 0 0 0-1.700-1L15 3.300h-4l-.3 2.600a7.500 7.500 0 0 0-1.700 1l-2.400-.9-2 3.400L6.600 11a7.600 7.600 0 0 0 0 2l-2 1.600 2 3.400 2.400-.9a7.500 7.500 0 0 0 1.700 1l.3 2.600h4l.3-2.600a7.500 7.500 0 0 0 1.700-1l2.400.9 2-3.400z"/></svg></button></header>
 <div id="app">
   <div id="banner"><span>Reconnect Twitch once to turn on the moderator tools (they need new permissions).</span><button id="reconnect">Reconnect</button></div>
   <div id="shell">
     <div id="tabs"><div id="tablist" style="display:contents"></div><form id="add"><input id="join" placeholder="join a channel..." autocomplete="off" spellcheck="false"><button>Join</button></form></div>
+    <div id="rail" title="Drag to resize (double-click to reset)"></div>
     <main><div id="player"></div><div id="chatcol"><div id="popbar"><span id="popName"></span><span id="popLive"></span><button class="ghost" id="popPlayer" data-tip="Watch with VLC or mpv through Streamlink">Open in player</button><button class="ghost" id="popVideo">Watch</button></div><div id="empty">Join any channel with the box in the tab bar. Type a name or paste a twitch.tv link.</div><div id="logwrap"><div id="find"><input id="findQ" placeholder="Find in this chat..." autocomplete="off" spellcheck="false"><span id="findN" class="muted"></span><button class="ghost" id="findX">Close</button></div><div id="log"></div><button id="jump"></button></div>
       <div id="modbar"></div><form id="bar" style="display:none"><div id="reply"></div><input id="msg" placeholder="Send a message" autocomplete="off" maxlength="500"><span id="cnt"></span><button type="button" class="ghost ic" id="emoBtn" title="Emotes"><svg viewBox="0 0 24 24" style="font-size:1.5em"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-3.5 7.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zm7 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zM12 18.5a6 6 0 0 1-5.3-3.2h10.6A6 6 0 0 1 12 18.5z"/></svg></button><button id="sendBtn">Send</button></form></div></main>
   </div>
@@ -173,7 +175,7 @@ function fixColor(c) {   // names stay readable on the chosen theme
 function applySettings(s) {
   const t = THEMES.find((x) => x.id === s.theme) || THEMES[0], r = document.documentElement.style; KEYS.forEach((k, i) => r.setProperty(k, t.v[i])); light = lum(t.v[0]) > 0.4;
   r.setProperty('--font', s.font === 'system' ? '"Segoe UI",system-ui,sans-serif' : '"' + s.font + '","Segoe UI",sans-serif'); r.setProperty('--size', s.size + 'px'); r.setProperty('--fw', s.weight);
-  document.body.classList.toggle('vertical', s.layout === 'vertical'); if (window.imcWindow) window.imcWindow.overlay(t.v[1], t.v[3]); document.body.classList.toggle('notime', !s.showTime); document.body.classList.toggle('compact', s.compact !== false); document.body.classList.toggle('alt', !!s.altRows); document.body.classList.toggle('noflash', s.mentionFlash === false); if (loaded) drawSettings();
+  document.body.classList.toggle('vertical', s.layout === 'vertical'); if (s.railWidth) document.documentElement.style.setProperty('--rail', s.railWidth + 'px'); else document.documentElement.style.removeProperty('--rail'); if (window.imcWindow) window.imcWindow.overlay(t.v[1], t.v[3]); document.body.classList.toggle('notime', !s.showTime); document.body.classList.toggle('compact', s.compact !== false); document.body.classList.toggle('alt', !!s.altRows); document.body.classList.toggle('noflash', s.mentionFlash === false); if (loaded) drawSettings();
 }
 function drawSettings() {
   const s = S.settings; $('fontOpts').innerHTML = FONTS.map((f) => '<div class="opt' + (s.font === f.id ? ' on' : '') + '" data-f="' + esc(f.id) + '"><div class="s" style="font-family:' + (f.id === 'system' ? '\'Segoe UI\'' : '\'' + f.id + '\'') + '">' + esc(f.id === 'system' ? 'System' : f.id) + '</div><div class="d">' + esc(f.d) + '</div></div>').join('');
@@ -480,6 +482,12 @@ $('fontOpts').onclick = (e) => { const o = e.target.closest('.opt'); if (o) save
 $('size').oninput = (e) => save({ size: Number(e.target.value) }); $('weight').oninput = (e) => save({ weight: Number(e.target.value) });
 $('themeBox').onclick = (e) => { const o = e.target.closest('.th'); if (o) save({ theme: o.dataset.t }); };
 document.querySelector('.layouts').onclick = (e) => { const o = e.target.closest('.opt'); if (o) { save({ layout: o.dataset.l }); drawTabs(); } };
+$('rail').onmousedown = (e) => {   // drag the edge of the channel list
+  const r = $('rail'), tabs = $('tabs'); r.classList.add('drag'); e.preventDefault();
+  const mv = (m) => { document.documentElement.style.setProperty('--rail', Math.min(520, Math.max(120, m.clientX - tabs.getBoundingClientRect().left)) + 'px'); };
+  const up = () => { removeEventListener('mousemove', mv); removeEventListener('mouseup', up); r.classList.remove('drag'); save({ railWidth: Math.round(tabs.getBoundingClientRect().width) }); }; addEventListener('mousemove', mv); addEventListener('mouseup', up);
+};
+$('rail').ondblclick = () => save({ railWidth: 0 });
 const ctxEl = $('ctx'); let ctxItems = [];
 function showCtx(x, y, items) { ctxItems = items; ctxEl.innerHTML = items.map((it, i) => (it === '-' ? '<hr>' : '<div class="ci' + (it.danger ? ' dg' : '') + '" data-i="' + i + '">' + esc(it.label) + '</div>')).join(''); place(ctxEl, x, y); }
 const hideCtx = () => { ctxEl.style.display = 'none'; };
@@ -515,7 +523,7 @@ document.addEventListener('contextmenu', (e) => {
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { hideCtx(); $('settings').style.display = 'none'; hideCard(); hideEmo(); closeFind(); } });
 const es = new EventSource('/events');
-playerInfo();
+playerInfo(); get('health').then((h) => { if (h.version) $('ver').textContent = 'v' + h.version; }).catch(() => {});
 es.onopen = () => { serverDown = false; drawConn(); }; es.onerror = () => { serverDown = true; drawConn(); };
 es.addEventListener('status', (e) => drawStatus(JSON.parse(e.data)));
 es.addEventListener('backfill', async (e) => {   // older messages arrived for a channel

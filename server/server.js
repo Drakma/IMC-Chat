@@ -11,6 +11,7 @@ const DATA = process.env.IMC_DATA || path.join(__dirname, 'data'), PORT = Number
 fs.mkdirSync(DATA, { recursive: true });
 const cfg = (() => { try { return JSON.parse(fs.readFileSync(path.join(DATA, 'config.json'), 'utf8')); } catch (e) { return {}; } })();
 const clientId = process.env.IMC_CLIENT_ID || cfg.clientId || JSON.parse(fs.readFileSync(path.join(__dirname, 'default-client.json'), 'utf8')).clientId;
+const VERSION = process.env.IMC_VERSION || (() => { try { return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'app', 'package.json'), 'utf8')).version; } catch (e) { return ''; } })();
 const log = (...a) => { const line = new Date().toISOString() + ' ' + a.join(' '); console.log(line); };
 
 const clients = new Set();
@@ -30,7 +31,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' }); res.write('retry: 2000\n\n');
       clients.add(res); req.on('close', () => clients.delete(res)); return res.write('event: status\ndata: ' + JSON.stringify(twitch.status()) + '\n\n');
     }
-    if (p === '/api/health') return json(res, 200, { ok: true, light: twitch.status().connected ? 'green' : 'amber', uptime: Math.round((Date.now() - STARTED) / 1000) });
+    if (p === '/api/health') return json(res, 200, { ok: true, version: VERSION, light: twitch.status().connected ? 'green' : 'amber', uptime: Math.round((Date.now() - STARTED) / 1000) });
     if (p === '/api/status') return json(res, 200, twitch.status());
     if (p === '/api/badges') return json(res, 200, await twitch.badges(new URL(req.url, 'http://localhost').searchParams.get('channel')));
     if (p === '/api/export') { res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Disposition': 'attachment; filename="imc-chat-backup.json"', 'Cache-Control': 'no-store' }); return res.end(JSON.stringify(twitch.exportData(), null, 2)); }

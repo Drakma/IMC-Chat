@@ -17,7 +17,7 @@ const url = () => 'http://localhost:' + PORT + '/', icon = (n) => nativeImage.cr
 function startServer() {
   fs.mkdirSync(DATA, { recursive: true });
   sup = createSupervisor({ command: process.execPath, args: [path.join(SERVER_DIR, 'server.js')], cwd: SERVER_DIR, port: PORT, log,
-    env: Object.assign({}, process.env, { ELECTRON_RUN_AS_NODE: '1', IMC_DATA: DATA, IMC_PORT: String(PORT) }),
+    env: Object.assign({}, process.env, { ELECTRON_RUN_AS_NODE: '1', IMC_VERSION: app.getVersion(), IMC_DATA: DATA, IMC_PORT: String(PORT) }),
     onOutput: (t) => { try { fs.appendFileSync(path.join(DATA, 'server.log'), t); } catch (e) { /* ignore */ } },
     onHealth: (h) => { light = h ? h.light : 'red'; refreshTray(); }, onState: () => refreshTray() });
   sup.start();
