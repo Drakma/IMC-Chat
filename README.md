@@ -2,8 +2,13 @@
 
 A Twitch chat client for Windows, in the same style as [ItMeCasey Stream](https://github.com/Drakma/ItMeCasey-Stream): a tray app with a local Node server (no dependencies) and a retro window. **Join any channel**, read and send chat, with tabs, emotes, replies and mention highlights. Free, GPL-3.0.
 
+## Download
+Get the Windows installer from the **[Releases page](https://github.com/Drakma/IMC-Chat/releases)**: download `IMC-Chat.Setup.<version>.exe` from the newest release and run it. Each release also lists a `SHA256SUMS.txt` so you can check the download. The installer is not code-signed, so Windows may show a warning the first time (*More info* > *Run anyway*).
+
+For the video player you will also want **VLC** (and, for Twitch's own player, nothing extra). The app can install **Streamlink** for you from Settings.
+
 ## Use it
-1. Install and open IMC-Chat (or `cd app && npm install && npm start`).
+1. Install and open IMC-Chat (or, to run it from the source, `cd app && npm install && npm start`).
 2. Press **Connect Twitch**, open the link, type the code. The login works like Stream's (device code): the app never sees your password.
 3. Type a channel name (or paste a twitch.tv link) in the box at the top and press **Join**. Each channel is a tab; a dot shows new messages (red = someone said your name).
 
@@ -38,6 +43,9 @@ IMC-Chat ships with its own Twitch app (its Client ID is public, not a secret), 
 - `server/server.js`: the local server (port 8430, this PC only). `server/public/index.html`: the chat window.
 - `app/`: the Electron shell (tray, window, restarts the server if it stops).
 - Your login and channel list are in the app's data folder (tray menu: *Open my data folder*), never in the repository.
+
+## Releases
+A release is made by pushing a tag that matches the version in `app/package.json` (for example `v2026.10.4`): GitHub Actions runs the tests, builds the installer and attaches it, with checksums, to a **draft** release that you then publish from the Releases page. Bump the version first with `cd app && npm run bump`.
 
 ## Develop
 ```
