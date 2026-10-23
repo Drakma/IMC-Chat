@@ -29,8 +29,10 @@ document.addEventListener('keydown', (e) => { if (!P) return; if (e.code === 'Sp
 watchTheme((t) => { if (P && P.theme) P.theme({ color: t.v[1], symbolColor: t.v[3] }); });
 if (P) P.on((d) => {
   if (d.type !== 'state') return; document.body.classList.toggle('full', !!d.full);
+  adLeft = d.ad || 0; if (adLeft) $('info').innerHTML = '<b style="color:var(--accent2);letter-spacing:2px">AD BREAK</b> &middot; Twitch is showing ads; the picture is paused and comes back in about ' + adLeft + ' s'; else if (wasAd) live(); wasAd = !!adLeft;
   $('t').textContent = d.ended ? d.ended.toUpperCase() : 'STARTING'; $('m').textContent = d.ended ? '' : 'Opening the stream...'; $('retry').style.display = d.ended ? '' : 'none';
 });
 // who is live, from the chat window's data
-const live = () => fetch('/api/status').then((r) => r.json()).then((s) => { const c = s.channels.find((x) => x.login === ch); $('info').textContent = c ? (c.live ? 'LIVE · ' + c.live.viewers.toLocaleString() + ' viewers' + (c.live.game ? ' · ' + c.live.game : '') + (c.live.title ? ' · ' + c.live.title : '') : 'offline') : ''; }).catch(() => {}); live(); setInterval(live, 60000);
+let adLeft = 0, wasAd = false;
+const live = () => adLeft ? null : fetch('/api/status').then((r) => r.json()).then((s) => { const c = s.channels.find((x) => x.login === ch); $('info').textContent = c ? (c.live ? 'LIVE · ' + c.live.viewers.toLocaleString() + ' viewers' + (c.live.game ? ' · ' + c.live.game : '') + (c.live.title ? ' · ' + c.live.title : '') : 'offline') : ''; }).catch(() => {}); live(); setInterval(live, 60000);
 </script></body></html>

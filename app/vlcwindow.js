@@ -32,6 +32,8 @@ module.exports = function createVlcWindows(o) {
     for (const k of Object.keys(cats)) { const m = /^(\d{2,5})x(\d{2,5})$/.exec(String((cats[k] || {}).Video_resolution || '')); if (m) return { w: Number(m[1]), h: Number(m[2]) }; }
     return null;
   };
+  /** how many closed-caption tracks VLC found inside the stream (it only sees them once the video is decoding) */
+  const captionTracks = (st) => { const cats = (st && st.information && st.information.category) || {}; return Object.keys(cats).filter((k) => /^subtitle$/i.test(String((cats[k] || {}).Type || ''))).length; };
   /** the qualities Streamlink can offer for a channel (it asks Twitch once) */
   const listQualities = (sl, login) => new Promise((resolve) => {
     let out = ''; let c; try { c = spawn(sl, ['--json', 'https://www.twitch.tv/' + login], { windowsHide: true, shell: false }); } catch (e) { return resolve([]); }
@@ -50,7 +52,7 @@ module.exports = function createVlcWindows(o) {
     const host = new BrowserWindow({ width: 960, height: 540, useContentSize: true, minWidth: 320, minHeight: 200, backgroundColor: '#000000', title: '#' + login + ' - IMC-Chat', icon: o.icon, autoHideMenuBar: true, show: false, titleBarStyle: 'hidden', titleBarOverlay: { color: '#1A2020', symbolColor: '#E2DAC2', height: HEAD }, webPreferences: web });   // the title strip is the page's own, themed like the chat
     const video = new BrowserWindow({ parent: host, frame: false, show: false, focusable: false, skipTaskbar: true, resizable: false, movable: false, minimizable: false, maximizable: false, hasShadow: false, backgroundColor: '#000000' });
     const ctl = new BrowserWindow({ parent: video, frame: false, transparent: true, backgroundColor: '#00000000', show: false, skipTaskbar: true, resizable: false, movable: false, minimizable: false, maximizable: false, hasShadow: false, webPreferences: web });
-    const rec = { login, host, video, ctl, head: HEAD, port, pw, bar: true, shown: false, quality: (opt && opt.quality) || 'best', qualities: [], proc: null, ended: '', closing: false, vol: opt && Number.isFinite(opt.volume) ? opt.volume : 100, last: { x: -1, y: -1 }, moved: Date.now() };
+    const rec = { login, host, video, ctl, head: HEAD, cc: 0, port, pw, bar: true, shown: false, quality: (opt && opt.quality) || 'best', qualities: [], proc: null, ended: '', closing: false, vol: opt && Number.isFinite(opt.volume) ? opt.volume : 100, last: { x: -1, y: -1 }, moved: Date.now() };
     wins.set(login, rec);
     const gone = () => host.isDestroyed() || video.isDestroyed() || ctl.isDestroyed();
     const place = () => {   // the video covers the whole content area; the controls float along its bottom edge
@@ -65,7 +67,14 @@ module.exports = function createVlcWindows(o) {
       const hwnd = video.getNativeWindowHandle().readBigUInt64LE(0).toString();
       const pa = ['--drawable-hwnd=' + hwnd, '--no-video-title-show', '--intf', 'dummy', '--extraintf=http', '--http-host=127.0.0.1', '--http-port=' + port, '--http-password=' + pw, '--volume=' + Math.round(rec.vol * 2.56), '--no-qt-privacy-ask'].join(' ');
       let out = ''; const c = spawn(found.streamlink, ['--player', found.player.path, '--player-args=' + pa, '--title', '{author} - {title}', 'https://www.twitch.tv/' + login, rec.quality], { windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
-      rec.proc = c; const grab = (d) => { if (out.length < 4000) out += String(d); }; c.stdout.on('data', grab); c.stderr.on('data', grab);
+      rec.proc = c; rec.ad = null;
+      const grab = (d) => {
+        const t = String(d); if (out.length < 4000) out += t;
+        // Twitch's ad breaks: Streamlink skips them and pauses the picture until they are over, and says so in its log
+        const m = /advertisement break of (\d+) seconds/i.exec(t); if (m) rec.ad = { until: Date.now() + Number(m[1]) * 1000 + 4000, seconds: Number(m[1]) };
+        if (/resuming stream output/i.test(t)) rec.ad = null;
+      };
+      c.stdout.on('data', grab); c.stderr.on('data', grab);
       c.on('exit', (code) => {
         if (rec.proc !== c || rec.closing) return; rec.ended = /offline|no playable streams|not found/i.test(out) ? 'The stream is offline' : code === 0 ? 'The stream ended' : (out.trim().split('\n').pop() || 'The player stopped').replace(/^\[cli\]\[error\]\s*/, '').slice(0, 160);
         if (!gone()) { video.hide(); showControls(false); if (!rec.shown) reveal(); } send({ type: 'state', ended: rec.ended });
@@ -94,7 +103,7 @@ module.exports = function createVlcWindows(o) {
       const st = rec.ended ? null : await vlcReq(port, pw, ''); if (gone()) return;
       if (!sized && st) { const size = videoSize(st); if (size) { sized = true; reveal(size); } }
       if (!rec.shown && !sized && Date.now() - t0 > 15000) reveal(null);
-      send({ type: 'state', state: st ? st.state : rec.ended ? 'ended' : 'starting', volume: st ? Math.round(st.volume / 2.56) : rec.vol, top: host.isAlwaysOnTop(), full: host.isFullScreen(), quality: rec.quality, qualities: rec.qualities, ended: rec.ended });
+      send({ type: 'state', state: st ? st.state : rec.ended ? 'ended' : 'starting', volume: st ? Math.round(st.volume / 2.56) : rec.vol, top: host.isAlwaysOnTop(), full: host.isFullScreen(), quality: rec.quality, qualities: rec.qualities, ended: rec.ended, ad: rec.ad && rec.ad.until > Date.now() ? Math.ceil((rec.ad.until - Date.now()) / 1000) : 0, cc: st ? captionTracks(st) : 0, ccOn: rec.cc > 0 ? rec.cc : 0 });
     }, 600);
     host.on('closed', () => { rec.closing = true; clearInterval(timer); killTree(rec.proc && rec.proc.pid); for (const w of [ctl, video]) if (!w.isDestroyed()) w.destroy(); wins.delete(login); });
     host.webContents.once('did-finish-load', () => { send({ type: 'init', channel: login }); }); ctl.webContents.once('did-finish-load', () => { send({ type: 'init', channel: login }); });
@@ -107,7 +116,10 @@ module.exports = function createVlcWindows(o) {
 
   /** what the controls ask for */
   async function command(wc, c) {
-    const rec = Array.from(wins.values()).find((r) => !r.host.isDestroyed() && (r.host.webContents.id === wc.id || (!r.ctl.isDestroyed() && r.ctl.webContents.id === wc.id))); if (!rec || !c) return null;
+    const rec = Array.from(wins.values()).find((r) => !r.host.isDestroyed() && (r.host.webContents.id === wc.id || (!r.ctl.isDestroyed() && r.ctl.webContents.id === wc.id))); return run(rec, c);
+  }
+  async function run(rec, c) {
+    if (!rec || !c) return null;
     const q = (x) => vlcReq(rec.port, rec.pw, x);
     switch (c.a) {
       case 'pause': return q('command=pl_pause');
@@ -115,6 +127,9 @@ module.exports = function createVlcWindows(o) {
       case 'top': rec.host.setAlwaysOnTop(!rec.host.isAlwaysOnTop()); return null;
       case 'full': rec.host.setFullScreen(!rec.host.isFullScreen()); return null;
       case 'quality': if (QUALITIES.includes(c.q) && (rec.qualities.includes(c.q) || c.q === 'best')) rec.restart(c.q); return null;
+      case 'cc': {   // closed captions: VLC's own "next subtitle track" key; after the last track they switch off again
+        const n = Number(c.tracks) || 0; if (!n) return null; rec.cc = (rec.cc + 1) % (n + 1); return q('command=key&val=key-subtitle-track');
+      }
       case 'chat': if (o.openChat) o.openChat(rec.login); return null;
       case 'retry': rec.restart(rec.quality); return null;
       case 'close': rec.host.close(); return null;
@@ -127,5 +142,5 @@ module.exports = function createVlcWindows(o) {
     if (rec && t && hex.test(t.color) && hex.test(t.symbolColor)) { try { rec.host.setTitleBarOverlay({ color: t.color, symbolColor: t.symbolColor, height: HEAD }); } catch (err) { /* not supported */ } }
   });
   const closeAll = () => { for (const r of wins.values()) { r.closing = true; killTree(r.proc && r.proc.pid); } };
-  return { watch, closeAll, wins, videoSize };
+  return { watch, closeAll, wins, videoSize, control: (login, c) => run(wins.get(String(login).toLowerCase()), c) };
 };
