@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IMC-Chat</title>
+<style>
+  :root { --iron:#222A2A; --iron-d:#1A2020; --aqua:#4FBBBC; --rust:#EC4624; --heat:#F39120; --cream:#E2DAC2; --drust:#B13A22; --line:#2f3938; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; } body { background: var(--iron); color: var(--cream); font-family: "Bahnschrift","Segoe UI",sans-serif; display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; gap: 14px; padding: 8px 18px; background: var(--iron-d); position: relative; flex: none; -webkit-app-region: drag; }
+  header::after { content:""; position:absolute; left:0; right:0; bottom:0; height:4px; background: linear-gradient(90deg,var(--aqua) 0 30%,var(--heat) 30% 55%,var(--rust) 55% 75%,var(--drust) 75% 90%,var(--cream) 90%); }
+  h1 { font-size: 18px; letter-spacing: 5px; } header .sp { flex: 1; } header * { -webkit-app-region: no-drag; } #who { font-size: 13px; color: #9aa39f; }
+  button { font: inherit; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; font-size: 12px; padding: 8px 13px; border: 0; cursor: pointer; background: var(--heat); color: var(--iron); } button:hover { filter: brightness(1.12); }
+  button.ghost { background: transparent; color: var(--cream); outline: 2px solid #46504f; } button:disabled { opacity: .5; cursor: default; }
+  input { font: inherit; font-size: 15px; padding: 8px 10px; background: var(--iron); color: var(--cream); border: 2px solid #46504f; min-width: 0; } input:focus { outline: none; border-color: var(--aqua); }
+  #tabs { display: flex; gap: 2px; background: var(--iron-d); padding: 6px 12px 0; overflow-x: auto; flex: none; border-bottom: 1px solid var(--line); }
+  .tab { padding: 8px 14px; background: #151b1b; cursor: pointer; font-size: 14px; white-space: nowrap; display: flex; gap: 8px; align-items: center; border-top: 3px solid transparent; }
+  .tab.on { background: var(--iron); border-color: var(--aqua); } .tab .x { color: #7d8783; font-size: 12px; } .tab .x:hover { color: var(--rust); } .tab .dot { width: 8px; height: 8px; background: var(--heat); display: none; } .tab.new .dot { display: block; } .tab.ment .dot { background: var(--rust); }
+  #add { display: flex; gap: 6px; margin-left: auto; padding: 0 0 6px 12px; } #add input { width: 170px; padding: 5px 8px; font-size: 13px; }
+  main { flex: 1; display: flex; min-height: 0; } #chatcol { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #log { flex: 1; overflow-y: auto; padding: 10px 16px; font-size: 15px; line-height: 1.45; }
+  .m { padding: 2px 0; word-wrap: break-word; } .m.ment { background: #3a2a1f; border-left: 3px solid var(--heat); padding-left: 8px; } .m.mine .n { text-decoration: underline; } .m .t { color: #6b7570; font-size: 11px; margin-right: 6px; } .m .n { font-weight: 700; } .m img { height: 24px; vertical-align: middle; margin: -4px 1px; }
+  .m .b { font-size: 10px; letter-spacing: 1px; background: #2f3938; padding: 0 4px; margin-right: 4px; color: #aab3af; text-transform: uppercase; } .m .rp { display: block; color: #8a948f; font-size: 12px; } .m .rb { cursor: pointer; color: #6b7570; margin-left: 8px; font-size: 11px; visibility: hidden; } .m:hover .rb { visibility: visible; }
+  #bar { display: flex; gap: 8px; padding: 10px 16px; background: var(--iron-d); flex: none; flex-wrap: wrap; } #bar input { flex: 1; } #reply { flex-basis: 100%; font-size: 12px; color: var(--aqua); display: none; } #reply b { cursor: pointer; color: var(--rust); margin-left: 8px; }
+  aside { width: 300px; background: var(--iron-d); border-left: 1px solid var(--line); padding: 14px; overflow-y: auto; flex: none; } aside h2 { font-size: 12px; letter-spacing: 4px; color: var(--aqua); margin: 0 0 10px; } aside h2.h { color: var(--heat); margin-top: 18px; }
+  .card { background: var(--iron); padding: 10px 12px; margin-bottom: 8px; font-size: 14px; } .card .q { font-weight: 700; margin-bottom: 8px; } .opt { margin: 5px 0; font-size: 13px; } .bar { height: 8px; background: #151b1b; margin-top: 2px; } .bar i { display: block; height: 100%; background: var(--aqua); }
+  .card a { color: var(--aqua); font-size: 12px; } .muted { color: #9aa39f; font-size: 13px; line-height: 1.5; }
+  #login { margin: auto; max-width: 480px; padding: 30px; text-align: center; display: grid; gap: 14px; } #code { font-size: 38px; letter-spacing: 8px; color: var(--heat); font-weight: 700; } #login a { color: var(--aqua); }
+  #empty { margin: auto; text-align: center; color: #9aa39f; padding: 20px; }
+  #toast { position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%); background: var(--rust); color: #fff; padding: 8px 18px; font-weight: 700; display: none; z-index: 5; max-width: 90%; }
+</style></head>
+<body>
+<header><h1>IMC-CHAT</h1><span class="sp"></span><span id="who"></span><button class="ghost" id="logout" style="display:none">Log out</button></header>
+<div id="app" style="display:none;flex:1;flex-direction:column;min-height:0">
+  <div id="tabs"><span id="tablist" style="display:flex;gap:2px"></span><form id="add"><input id="join" placeholder="join a channel..." autocomplete="off" spellcheck="false"><button>Join</button></form></div>
+  <main>
+    <div id="chatcol"><div id="empty">Join any channel with the box above. Type a name or paste a twitch.tv link.</div><div id="log" style="display:none"></div>
+      <form id="bar" style="display:none"><div id="reply"></div><input id="msg" placeholder="Send a message" autocomplete="off" maxlength="500"><button>Send</button></form></div>
+    <aside><h2>YOUR POLL</h2><div id="poll" class="muted">No poll right now.</div><h2 class="h">YOUR PREDICTION</h2><div id="pred" class="muted">No prediction right now.</div>
+      <p class="muted" style="margin-top:18px">Twitch only lets a channel's owner follow its polls and predictions, and gives viewers no way to vote from outside twitch.tv. So these show <b>your own channel</b>, and the Vote button opens the channel in your browser.</p></aside>
+  </main>
+</div>
+<div id="login" style="display:none"><h2 style="letter-spacing:5px;color:var(--aqua)">CONNECT TWITCH</h2><p class="muted">Press Connect, open the link Twitch shows and type the code. The app never sees your password.</p><div id="codebox" style="display:none"><div id="code"></div><p><a id="link" target="_blank" rel="noopener"></a></p></div><div><button id="connect">Connect Twitch</button></div><p id="lmsg" class="muted"></p></div>
+<div id="toast"></div>
+<script>
+const $ = (id) => document.getElementById(id), esc = (x) => String(x == null ? '' : x).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const post = (p, b) => fetch('/api/' + p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b || {}) }).then((r) => r.json());
+function toast(t) { const e = $('toast'); e.textContent = t; e.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => e.style.display = 'none', 4000); }
+let S = null, cur = '', replyTo = null, unread = {}, ments = {}; const msgs = {};
+try { cur = localStorage.getItem('imc.tab') || ''; } catch (e) { /* private */ }
+
+function drawStatus(s) {
+  S = s; const ok = s.auth.status === 'ok';
+  $('login').style.display = ok ? 'none' : 'grid'; $('app').style.display = ok ? 'flex' : 'none'; $('logout').style.display = ok ? '' : 'none'; $('who').textContent = ok ? s.login + (s.connected ? '' : ' (connecting...)') : '';
+  $('codebox').style.display = s.device ? '' : 'none'; if (s.device) { $('code').textContent = s.device.code; $('link').href = s.device.url; $('link').textContent = s.device.url; }
+  $('lmsg').textContent = s.auth.status === 'error' ? s.auth.message : '';
+  if (!s.channels.some((c) => c.login === cur)) cur = s.channels[0] ? s.channels[0].login : '';
+  drawTabs(); drawPoll(s);
+}
+function drawTabs() {
+  $('tablist').innerHTML = S.channels.map((c) => '<div class="tab' + (c.login === cur ? ' on' : '') + (unread[c.login] ? ' new' : '') + (ments[c.login] ? ' ment' : '') + '" data-c="' + esc(c.login) + '"><span class="dot"></span>' + esc(c.name) + '<span class="x" data-x="' + esc(c.login) + '">&#10005;</span></div>').join('');
+  const has = !!cur; $('empty').style.display = has ? 'none' : ''; $('log').style.display = has ? '' : 'none'; $('bar').style.display = has ? 'flex' : 'none'; $('msg').placeholder = has ? 'Send a message to ' + cur : '';
+}
+function frag(f) { return f.type === 'emote' ? '<img alt="' + esc(f.text) + '" title="' + esc(f.text) + '" src="https://static-cdn.jtvnw.net/emoticons/v2/' + encodeURIComponent(f.id) + '/default/dark/2.0">' : esc(f.text); }
+function line(m) {
+  const d = new Date(m.ts), t = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  return '<div class="m' + (m.mention ? ' ment' : '') + (m.mine ? ' mine' : '') + '" data-id="' + esc(m.id) + '">' + (m.reply ? '<span class="rp">&#8627; @' + esc(m.reply.name) + ': ' + esc(m.reply.text) + '</span>' : '') + '<span class="t">' + t + '</span>' + (m.badges.includes('moderator') ? '<span class="b">mod</span>' : '') + (m.badges.includes('broadcaster') ? '<span class="b">host</span>' : '') + (m.badges.includes('subscriber') ? '<span class="b">sub</span>' : '')
+    + '<span class="n" style="color:' + esc(m.color || '#4FBBBC') + '">' + esc(m.name) + '</span>: ' + m.frags.map(frag).join('') + '<span class="rb" data-reply="' + esc(m.id) + '" data-name="' + esc(m.name) + '">reply</span></div>';
+}
+function render() { const L = $('log'); L.innerHTML = (msgs[cur] || []).filter((m) => !m.gone).map(line).join(''); L.scrollTop = L.scrollHeight; }
+function addMsg(m) {
+  const a = msgs[m.channel] = msgs[m.channel] || []; if (a.some((x) => x.id === m.id)) return; a.push(m); if (a.length > 400) a.shift();
+  if (m.channel === cur) { const L = $('log'), stick = L.scrollHeight - L.scrollTop - L.clientHeight < 80; L.insertAdjacentHTML('beforeend', line(m)); while (L.children.length > 400) L.removeChild(L.firstChild); if (stick) L.scrollTop = L.scrollHeight; }
+  else { unread[m.channel] = true; if (m.mention) ments[m.channel] = true; drawTabs(); }
+}
+async function openTab(c) { cur = c; unread[c] = false; ments[c] = false; replyTo = null; $('reply').style.display = 'none'; try { localStorage.setItem('imc.tab', c); } catch (e) { /* private */ } if (c && !msgs[c]) msgs[c] = await fetch('/api/history?channel=' + encodeURIComponent(c)).then((r) => r.json()); drawTabs(); render(); }
+function drawPoll(s) {
+  const p = s.poll, q = s.prediction, me = s.login;
+  $('poll').innerHTML = p ? '<div class="card"><div class="q">' + esc(p.title) + (p.done ? ' <span class="muted">(ended)</span>' : '') + '</div>' + (p.choices || []).map((c) => { const tot = (p.choices || []).reduce((a, x) => a + (x.votes || 0), 0) || 1; return '<div class="opt">' + esc(c.title) + ' <span class="muted">' + (c.votes || 0) + '</span><div class="bar"><i style="width:' + Math.round(100 * (c.votes || 0) / tot) + '%"></i></div></div>'; }).join('') + (p.done ? '' : '<a href="https://www.twitch.tv/' + esc(me) + '" target="_blank" rel="noopener">Open channel to vote</a>') + '</div>' : 'No poll right now.';
+  $('pred').innerHTML = q ? '<div class="card"><div class="q">' + esc(q.title) + (q.done ? ' <span class="muted">(' + esc(q.status || 'ended') + ')</span>' : q.locked_at ? ' <span class="muted">(locked)</span>' : '') + '</div>' + (q.outcomes || []).map((o) => '<div class="opt" style="color:' + (o.color === 'pink' ? '#e48' : '#4FBBBC') + '">' + esc(o.title) + (q.winning_outcome_id === o.id ? ' &#10003;' : '') + ' <span class="muted">' + (o.users || 0) + ' people, ' + (o.channel_points || 0) + ' pts</span></div>').join('') + (q.done || q.locked_at ? '' : '<a href="https://www.twitch.tv/' + esc(me) + '" target="_blank" rel="noopener">Open channel to predict</a>') + '</div>' : 'No prediction right now.';
+}
+$('connect').onclick = async () => { const r = await post('login'); if (r.error) $('lmsg').textContent = r.error; };
+$('logout').onclick = async () => { drawStatus(await post('logout')); };
+$('add').onsubmit = async (e) => { e.preventDefault(); const v = $('join').value.trim(); if (!v) return; const r = await post('join', { channel: v }); if (r.error) return toast(r.error); $('join').value = ''; drawStatus(r); const c = r.channels[r.channels.length - 1]; openTab(c.login); };
+$('tablist').onclick = async (e) => { const x = e.target.dataset.x; if (x) { const r = await post('leave', { channel: x }); drawStatus(r); return openTab(cur); } const t = e.target.closest('.tab'); if (t) openTab(t.dataset.c); };
+$('log').onclick = (e) => { const r = e.target.dataset.reply; if (r) { replyTo = r; $('reply').innerHTML = 'Replying to ' + esc(e.target.dataset.name) + '<b id="nore">cancel</b>'; $('reply').style.display = 'block'; $('msg').focus(); $('nore').onclick = () => { replyTo = null; $('reply').style.display = 'none'; }; } };
+$('bar').onsubmit = async (e) => { e.preventDefault(); const t = $('msg').value.trim(); if (!t || !cur) return; const r = await post('send', { channel: cur, text: t, replyTo }); if (r.error) return toast(r.error); $('msg').value = ''; replyTo = null; $('reply').style.display = 'none'; };
+const es = new EventSource('/events');
+es.addEventListener('status', (e) => { const first = !S; drawStatus(JSON.parse(e.data)); if (first && cur) openTab(cur); });
+es.addEventListener('chat', (e) => addMsg(JSON.parse(e.data)));
+es.addEventListener('chatmod', (e) => { const m = JSON.parse(e.data), a = msgs[m.channel] || []; if (m.type === 'clear') msgs[m.channel] = []; else for (const x of a) if (m.type === 'delete' ? x.id === m.id : x.uid === m.uid) x.gone = true; if (m.channel === cur) render(); });
+</script></body></html>

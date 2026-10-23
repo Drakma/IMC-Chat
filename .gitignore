@@ -1,0 +1,10 @@
+node_modules/
+app/dist/
+app/release/
+*.exe
+*.blockmap
+data/
+tokens.json
+*.local.json
+*.log
+Thumbs.db

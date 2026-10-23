@@ -1,0 +1,54 @@
+'use strict';
+/** IMC-Chat: the desktop app. Runs the local chat server in the background, shows the chat window, lives in the tray. */
+const { app, BrowserWindow, Tray, Menu, nativeImage, shell } = require('electron');
+const fs = require('node:fs'), path = require('node:path');
+const createSupervisor = require('./supervisor.js');
+
+const PACKED = app.isPackaged, RES = PACKED ? process.resourcesPath : path.join(__dirname, '..'), SERVER_DIR = path.join(RES, 'server'), BUILD = path.join(__dirname, 'build');
+const PORT = 8430, userData = app.getPath('userData'), DATA = path.join(userData, 'data'), SETTINGS_FILE = path.join(userData, 'settings.json');
+if (!app.requestSingleInstanceLock()) { app.quit(); process.exit(0); }
+
+let win = null, tray = null, sup = null, quitting = false, light = 'grey', settings = { closeToTray: true, startWithWindows: false };
+try { settings = Object.assign(settings, JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'))); } catch (e) { /* first run */ }
+const saveSettings = () => { try { fs.mkdirSync(userData, { recursive: true }); fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2)); } catch (e) { /* read-only */ } };
+const log = (...a) => { try { fs.mkdirSync(DATA, { recursive: true }); fs.appendFileSync(path.join(DATA, 'app.log'), new Date().toISOString() + ' ' + a.join(' ') + '\n'); } catch (e) { /* ignore */ } };
+const url = () => 'http://localhost:' + PORT + '/', icon = (n) => nativeImage.createFromPath(path.join(BUILD, n));
+
+function startServer() {
+  fs.mkdirSync(DATA, { recursive: true });
+  sup = createSupervisor({ command: process.execPath, args: [path.join(SERVER_DIR, 'server.js')], cwd: SERVER_DIR, port: PORT, log,
+    env: Object.assign({}, process.env, { ELECTRON_RUN_AS_NODE: '1', IMC_DATA: DATA, IMC_PORT: String(PORT) }),
+    onOutput: (t) => { try { fs.appendFileSync(path.join(DATA, 'server.log'), t); } catch (e) { /* ignore */ } },
+    onHealth: (h) => { light = h ? h.light : 'red'; refreshTray(); }, onState: () => refreshTray() });
+  sup.start();
+}
+const SPLASH = 'data:text/html;charset=utf-8,' + encodeURIComponent('<body style="background:#222A2A;color:#E2DAC2;font-family:Segoe UI,sans-serif;display:grid;place-items:center;height:100vh;margin:0;letter-spacing:6px">IMC-CHAT</body>');
+async function waitForServer() { for (let i = 0; i < 120; i++) { try { const r = await fetch(url() + 'api/health'); if (r.ok) return; } catch (e) { /* not yet */ } await new Promise((r) => setTimeout(r, 500)); } }
+function openWindow() {
+  if (win) { if (win.isMinimized()) win.restore(); win.show(); return win.focus(); }
+  const b = settings.window || {};
+  win = new BrowserWindow({ width: b.width || 1100, height: b.height || 760, minWidth: 700, minHeight: 480, backgroundColor: '#222A2A', show: false, icon: icon('icon.png'), autoHideMenuBar: true, titleBarStyle: 'hidden', titleBarOverlay: { color: '#1A2020', symbolColor: '#E2DAC2', height: 32 } });
+  win.once('ready-to-show', () => win.show());
+  win.on('close', (e) => { if (!win.isMinimized() && !win.isMaximized()) settings.window = win.getNormalBounds(); saveSettings(); if (!quitting && settings.closeToTray) { e.preventDefault(); win.hide(); } });
+  win.on('closed', () => { win = null; });
+  win.webContents.setWindowOpenHandler(({ url: u }) => { shell.openExternal(u); return { action: 'deny' }; });
+  win.webContents.on('will-navigate', (e, u) => { if (!u.startsWith(url()) && !u.startsWith('data:')) { e.preventDefault(); shell.openExternal(u); } });
+  win.loadURL(SPLASH).then(() => waitForServer().then(() => win && win.loadURL(url()))).catch(() => {});
+}
+const TEXT = { green: 'Connected', amber: 'Not connected to Twitch yet', red: 'Server problem', grey: 'Starting...' };
+function refreshTray() {
+  if (!tray) return;
+  tray.setImage(icon('tray-' + light + '.png').resize({ width: 24, height: 24 })); tray.setToolTip('IMC-Chat: ' + TEXT[light]);
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: 'Status: ' + TEXT[light], enabled: false }, { type: 'separator' }, { label: 'Open IMC-Chat', click: openWindow },
+    { label: 'Start with Windows', type: 'checkbox', checked: !!settings.startWithWindows, click: (m) => { settings.startWithWindows = m.checked; saveSettings(); try { app.setLoginItemSettings({ openAtLogin: m.checked, args: ['--hidden'] }); } catch (e) { /* unsupported */ } } },
+    { label: 'Keep running in the tray when closed', type: 'checkbox', checked: !!settings.closeToTray, click: (m) => { settings.closeToTray = m.checked; saveSettings(); } },
+    { label: 'Open my data folder', click: () => shell.openPath(DATA) }, { type: 'separator' }, { label: 'Quit', click: () => { quitting = true; app.quit(); } }]));
+}
+app.on('second-instance', openWindow);
+app.whenReady().then(() => {
+  app.setAppUserModelId('com.itmecasey.imcchat'); tray = new Tray(icon('tray-grey.png').resize({ width: 24, height: 24 })); tray.on('click', openWindow); refreshTray(); startServer();
+  if (!process.argv.includes('--hidden')) openWindow();
+});
+app.on('window-all-closed', () => { /* stay in the tray */ });
+app.on('before-quit', () => { quitting = true; if (sup) sup.stop(); });

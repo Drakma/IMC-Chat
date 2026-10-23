@@ -1,0 +1,8 @@
+{
+  "name": "imc-chat-dev",
+  "private": true,
+  "description": "Development tooling (the app is in app/)",
+  "license": "GPL-3.0-or-later",
+  "scripts": { "lint": "eslint", "test": "node server/twitch-test.js" },
+  "devDependencies": { "eslint": "^9.39.0" }
+}
