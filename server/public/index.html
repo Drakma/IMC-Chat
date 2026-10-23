@@ -1,96 +1,253 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>IMC-Chat</title>
+<link rel="stylesheet" href="/fonts/fonts.css">
 <style>
-  :root { --iron:#222A2A; --iron-d:#1A2020; --aqua:#4FBBBC; --rust:#EC4624; --heat:#F39120; --cream:#E2DAC2; --drust:#B13A22; --line:#2f3938; }
+  :root { --bg:#222A2A; --panel:#1A2020; --panel2:#151b1b; --text:#E2DAC2; --muted:#9aa39f; --accent:#4FBBBC; --accent2:#F39120; --danger:#EC4624; --line:#2f3938; --input:#222A2A; --on:#1A2020; --hover:#2a3333;
+    --font:"IMC Sans","Segoe UI",sans-serif; --size:16px; --fw:400; }
   * { box-sizing: border-box; margin: 0; }
-  html, body { height: 100%; } body { background: var(--iron); color: var(--cream); font-family: "Bahnschrift","Segoe UI",sans-serif; display: flex; flex-direction: column; }
-  header { display: flex; align-items: center; gap: 14px; padding: 8px 18px; background: var(--iron-d); position: relative; flex: none; -webkit-app-region: drag; }
-  header::after { content:""; position:absolute; left:0; right:0; bottom:0; height:4px; background: linear-gradient(90deg,var(--aqua) 0 30%,var(--heat) 30% 55%,var(--rust) 55% 75%,var(--drust) 75% 90%,var(--cream) 90%); }
-  h1 { font-size: 18px; letter-spacing: 5px; } header .sp { flex: 1; } header * { -webkit-app-region: no-drag; } #who { font-size: 13px; color: #9aa39f; }
-  button { font: inherit; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; font-size: 12px; padding: 8px 13px; border: 0; cursor: pointer; background: var(--heat); color: var(--iron); } button:hover { filter: brightness(1.12); }
-  button.ghost { background: transparent; color: var(--cream); outline: 2px solid #46504f; } button:disabled { opacity: .5; cursor: default; }
-  input { font: inherit; font-size: 15px; padding: 8px 10px; background: var(--iron); color: var(--cream); border: 2px solid #46504f; min-width: 0; } input:focus { outline: none; border-color: var(--aqua); }
-  #tabs { display: flex; gap: 2px; background: var(--iron-d); padding: 6px 12px 0; overflow-x: auto; flex: none; border-bottom: 1px solid var(--line); }
-  .tab { padding: 8px 14px; background: #151b1b; cursor: pointer; font-size: 14px; white-space: nowrap; display: flex; gap: 8px; align-items: center; border-top: 3px solid transparent; }
-  .tab.on { background: var(--iron); border-color: var(--aqua); } .tab .x { color: #7d8783; font-size: 12px; } .tab .x:hover { color: var(--rust); } .tab .dot { width: 8px; height: 8px; background: var(--heat); display: none; } .tab.new .dot { display: block; } .tab.ment .dot { background: var(--rust); }
-  #add { display: flex; gap: 6px; margin-left: auto; padding: 0 0 6px 12px; } #add input { width: 170px; padding: 5px 8px; font-size: 13px; }
+  html, body { height: 100%; } body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: var(--size); font-weight: var(--fw); display: flex; flex-direction: column; overflow: hidden; }
+  header { display: flex; align-items: center; gap: 14px; padding: 6px 18px; padding-right: 150px; background: var(--panel); position: relative; flex: none; -webkit-app-region: drag; height: 40px; }
+  header::after { content:""; position:absolute; left:0; right:0; bottom:0; height:4px; background: linear-gradient(90deg,var(--accent) 0 30%,var(--accent2) 30% 55%,var(--danger) 55% 75%,var(--accent2) 75% 90%,var(--text) 90%); }
+  h1 { font-size: 1.1em; letter-spacing: 5px; font-weight: 800; } header .sp { flex: 1; } header > * { -webkit-app-region: no-drag; } header h1 { -webkit-app-region: drag; } #who { font-size: .8em; color: var(--muted); }
+  button { font: inherit; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; font-size: .72em; padding: 8px 13px; border: 0; cursor: pointer; background: var(--accent2); color: var(--on); } button:hover { filter: brightness(1.1); }
+  button.ghost { background: transparent; color: var(--text); outline: 2px solid var(--line); } button.ghost:hover { outline-color: var(--accent); } button.ic { padding: 6px 8px; display: inline-flex; } button:disabled { opacity: .5; cursor: default; }
+  input, select { font: inherit; font-size: .95em; padding: 8px 10px; background: var(--input); color: var(--text); border: 2px solid var(--line); min-width: 0; } input:focus, select:focus { outline: none; border-color: var(--accent); }
+  svg { width: 1em; height: 1em; fill: currentColor; flex: none; }
+  #app { display: none; flex: 1; flex-direction: column; min-height: 0; }
+  #banner { display: none; background: var(--accent2); color: var(--on); padding: 8px 18px; font-size: .85em; gap: 12px; align-items: center; flex: none; } #banner button { background: var(--on); color: var(--text); }
+  #shell { flex: 1; display: flex; flex-direction: column; min-height: 0; } body.vertical #shell { flex-direction: row; }
+  #tabs { display: flex; background: var(--panel); overflow-x: auto; flex: none; border-bottom: 1px solid var(--line); align-items: flex-end; padding: 6px 12px 0; gap: 2px; }
+  body.vertical #tabs { flex-direction: column; width: 210px; overflow-y: auto; overflow-x: hidden; border-bottom: 0; border-right: 1px solid var(--line); padding: 8px 0; align-items: stretch; gap: 0; }
+  .tab { padding: 8px 14px; background: var(--panel2); cursor: pointer; font-size: .9em; white-space: nowrap; display: flex; gap: 8px; align-items: center; border-top: 3px solid transparent; position: relative; }
+  body.vertical .tab { border-top: 0; border-left: 4px solid transparent; padding: 9px 12px; background: transparent; } .tab:hover { background: var(--hover); }
+  .tab.on { background: var(--bg); border-color: var(--accent); font-weight: 700; } body.vertical .tab.on { background: var(--bg); border-left-color: var(--accent); } .tab .nm { overflow: hidden; text-overflow: ellipsis; flex: 1; } .tab .x { color: var(--muted); font-size: .8em; opacity: 0; } .tab:hover .x { opacity: 1; } .tab .x:hover { color: var(--danger); }
+  .tab .dot { width: 8px; height: 8px; background: var(--accent2); display: none; flex: none; } .tab.new .dot { display: block; } .tab.ment .dot { background: var(--danger); } .tab.drop { box-shadow: inset 3px 0 0 var(--accent); } .tab .av { width: 20px; height: 20px; border-radius: 50%; flex: none; } .tab .sw { color: var(--accent2); }
+  #add { display: flex; gap: 6px; padding: 0 0 6px 12px; margin-left: auto; flex: none; } #add input { width: 170px; padding: 5px 8px; font-size: .85em; } body.vertical #add { margin: 8px 10px 4px; padding: 0; order: -1; } body.vertical #add input { flex: 1; width: auto; }
   main { flex: 1; display: flex; min-height: 0; } #chatcol { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  #log { flex: 1; overflow-y: auto; padding: 10px 16px; font-size: 15px; line-height: 1.45; }
-  .m { padding: 2px 0; word-wrap: break-word; } .m.ment { background: #3a2a1f; border-left: 3px solid var(--heat); padding-left: 8px; } .m.mine .n { text-decoration: underline; } .m .t { color: #6b7570; font-size: 11px; margin-right: 6px; } .m .n { font-weight: 700; } .m img { height: 24px; vertical-align: middle; margin: -4px 1px; }
-  .m img.bd { height: 18px; margin: -3px 3px -3px 0; }
-  .m .b { font-size: 10px; letter-spacing: 1px; background: #2f3938; padding: 0 4px; margin-right: 4px; color: #aab3af; text-transform: uppercase; } .m .rp { display: block; color: #8a948f; font-size: 12px; } .m .rb { cursor: pointer; color: #6b7570; margin-left: 8px; font-size: 11px; visibility: hidden; } .m:hover .rb { visibility: visible; }
-  #bar { display: flex; gap: 8px; padding: 10px 16px; background: var(--iron-d); flex: none; flex-wrap: wrap; } #bar input { flex: 1; } #reply { flex-basis: 100%; font-size: 12px; color: var(--aqua); display: none; } #reply b { cursor: pointer; color: var(--rust); margin-left: 8px; }
-  aside { width: 300px; background: var(--iron-d); border-left: 1px solid var(--line); padding: 14px; overflow-y: auto; flex: none; } aside h2 { font-size: 12px; letter-spacing: 4px; color: var(--aqua); margin: 0 0 10px; } aside h2.h { color: var(--heat); margin-top: 18px; }
-  .card { background: var(--iron); padding: 10px 12px; margin-bottom: 8px; font-size: 14px; } .card .q { font-weight: 700; margin-bottom: 8px; } .opt { margin: 5px 0; font-size: 13px; } .bar { height: 8px; background: #151b1b; margin-top: 2px; } .bar i { display: block; height: 100%; background: var(--aqua); }
-  .card a { color: var(--aqua); font-size: 12px; } .muted { color: #9aa39f; font-size: 13px; line-height: 1.5; }
-  #login { margin: auto; max-width: 480px; padding: 30px; text-align: center; display: grid; gap: 14px; } #code { font-size: 38px; letter-spacing: 8px; color: var(--heat); font-weight: 700; } #login a { color: var(--aqua); }
-  #empty { margin: auto; text-align: center; color: #9aa39f; padding: 20px; }
-  * { scrollbar-width: thin; scrollbar-color: var(--heat) var(--iron-d); }
-  ::-webkit-scrollbar { width: 12px; height: 12px; } ::-webkit-scrollbar-track { background: var(--iron-d); border-left: 1px solid var(--line); }
-  ::-webkit-scrollbar-thumb { background: var(--heat); border: 3px solid var(--iron-d); } ::-webkit-scrollbar-thumb:hover { background: var(--rust); } ::-webkit-scrollbar-corner { background: var(--iron-d); }
-  #toast { position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%); background: var(--rust); color: #fff; padding: 8px 18px; font-weight: 700; display: none; z-index: 5; max-width: 90%; }
+  #log { flex: 1; overflow-y: auto; padding: 10px 16px; line-height: 1.45; } #log::-webkit-scrollbar, #tabs::-webkit-scrollbar { width: 10px; height: 8px; } #log::-webkit-scrollbar-thumb, #tabs::-webkit-scrollbar-thumb { background: var(--line); } #log::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+  .m { padding: 2px 4px; word-wrap: break-word; position: relative; } .m:hover { background: var(--hover); } .m.ment { background: color-mix(in srgb, var(--accent2) 18%, transparent); border-left: 3px solid var(--accent2); padding-left: 8px; } .m.mine .n { text-decoration: underline; }
+  .m.cheer { border-left: 3px solid var(--accent); padding-left: 8px; background: color-mix(in srgb, var(--accent) 10%, transparent); } .m.hl { background: color-mix(in srgb, var(--accent) 14%, transparent); } .m .tag { font-size: .7em; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); margin-right: 6px; }
+  .m .t { color: var(--muted); font-size: .7em; margin-right: 6px; opacity: .8; } .m .n { font-weight: calc(var(--fw) + 300 > 900 ? 900 : var(--fw) + 300); cursor: pointer; } .m .n:hover { text-decoration: underline; }
+  .m img.e { height: 1.6em; vertical-align: middle; margin: -.3em 1px; } .m img.bd { height: 1.15em; vertical-align: middle; margin: -.2em 3px -.2em 0; } .m img.gif { display: block; max-height: 170px; max-width: 280px; margin: 4px 0; border: 2px solid var(--line); }
+  .m .rp { display: block; color: var(--muted); font-size: .8em; } .m .acts { display: none; position: absolute; right: 6px; top: 1px; background: var(--panel); border: 1px solid var(--line); } .m:hover .acts { display: flex; }
+  .acts span { padding: 1px 7px; font-size: .72em; cursor: pointer; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; } .acts span:hover { color: var(--text); background: var(--hover); } .acts span.dg:hover { color: var(--danger); }
+  .ev { margin: 6px 0; padding: 7px 12px; border-left: 4px solid var(--accent2); background: var(--panel); display: flex; gap: 10px; align-items: flex-start; } .ev svg { margin-top: .2em; color: var(--accent2); font-size: 1.15em; } .ev .hd { font-weight: 800; } .ev .bd2 { color: var(--text); } .ev .who { color: var(--muted); font-size: .85em; }
+  .ev-raid { border-color: var(--danger); } .ev-raid svg { color: var(--danger); } .ev-announcement { border-color: var(--accent); } .ev-announcement svg { color: var(--accent); }
+  .an-blue { border-color: #4a8dff; } .an-blue svg { color: #4a8dff; } .an-green { border-color: #3fb868; } .an-green svg { color: #3fb868; } .an-orange { border-color: #f39120; } .an-orange svg { color: #f39120; } .an-purple { border-color: #9b6cff; } .an-purple svg { color: #9b6cff; }
+  #bar { display: flex; gap: 8px; padding: 10px 16px; background: var(--panel); flex: none; flex-wrap: wrap; align-items: center; } #bar input { flex: 1; } #reply { flex-basis: 100%; font-size: .8em; color: var(--accent); display: none; } #reply b { cursor: pointer; color: var(--danger); margin-left: 8px; }
+  #modbar { display: none; gap: 6px; padding: 8px 16px; background: var(--panel2); border-top: 1px solid var(--line); flex: none; flex-wrap: wrap; align-items: center; } #modbar .lb { color: var(--accent2); font-size: .72em; letter-spacing: 3px; display: flex; gap: 6px; align-items: center; margin-right: 6px; }
+  #modbar button.on { background: var(--accent); } #modbar button.danger { background: var(--danger); color: #fff; }
+  #empty { margin: auto; text-align: center; color: var(--muted); padding: 20px; }
+  #login { margin: auto; max-width: 480px; padding: 30px; text-align: center; display: none; gap: 14px; } #code { font-size: 2.4em; letter-spacing: 8px; color: var(--accent2); font-weight: 800; } #login a { color: var(--accent); } .muted { color: var(--muted); font-size: .85em; line-height: 1.5; }
+  #toast { position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%); background: var(--danger); color: #fff; padding: 8px 18px; font-weight: 700; display: none; z-index: 50; max-width: 90%; }
+  /* hover cards */
+  #tip { position: fixed; z-index: 40; display: none; background: var(--panel); border: 2px solid var(--accent); padding: 6px 10px; font-size: .8em; pointer-events: none; max-width: 260px; box-shadow: 0 6px 20px #0008; text-align: center; } #tip img { display: block; margin: 4px auto 0; max-height: 72px; }
+  #card { position: fixed; z-index: 41; display: none; width: 310px; background: var(--panel); border: 2px solid var(--accent); box-shadow: 0 10px 30px #000a; } #card .top { height: 6px; background: linear-gradient(90deg,var(--accent) 0 30%,var(--accent2) 30% 55%,var(--danger) 55% 75%,var(--accent2) 75% 90%,var(--text) 90%); }
+  #card .bodyc { padding: 12px 14px; display: grid; gap: 9px; } #card .hd { display: flex; gap: 12px; align-items: center; } #card .pic { width: 56px; height: 56px; border: 2px solid var(--line); background: var(--panel2); flex: none; } #card .nm { font-weight: 800; font-size: 1.15em; line-height: 1.1; } #card .lg { color: var(--muted); font-size: .8em; }
+  #card .chips { display: flex; flex-wrap: wrap; gap: 5px; } #card .chip { display: flex; gap: 5px; align-items: center; background: var(--panel2); border: 1px solid var(--line); padding: 2px 7px 2px 3px; font-size: .75em; } #card .chip img { height: 1.4em; }
+  #card .kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: .8em; } #card .kv b { color: var(--accent); letter-spacing: 2px; font-size: .85em; text-transform: uppercase; font-weight: 700; } #card .bio { font-size: .8em; color: var(--muted); border-left: 3px solid var(--line); padding-left: 8px; max-height: 5.2em; overflow: hidden; }
+  #card .mods { border-top: 1px dashed var(--line); padding-top: 9px; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; } #card .mods .lb { width: 100%; color: var(--accent2); font-size: .68em; letter-spacing: 3px; display: flex; gap: 6px; align-items: center; } #card .mods button { padding: 5px 9px; }
+  /* settings */
+  #settings { position: fixed; inset: 0; background: #000a; display: none; z-index: 60; align-items: center; justify-content: center; } #settings .box { background: var(--panel); border: 2px solid var(--accent); width: min(760px, 94vw); max-height: 92vh; overflow-y: auto; }
+  #settings .top { display: flex; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--line); } #settings h2 { font-size: 1em; letter-spacing: 6px; flex: 1; } #settings .sec { padding: 14px 18px; border-bottom: 1px solid var(--line); display: grid; gap: 10px; } #settings h3 { font-size: .7em; letter-spacing: 4px; color: var(--accent); }
+  .fonts, .layouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; } .opt { background: var(--panel2); border: 2px solid var(--line); padding: 10px 12px; cursor: pointer; } .opt:hover { border-color: var(--muted); } .opt.on { border-color: var(--accent); } .opt .s { font-size: 1.5em; line-height: 1.1; } .opt .d { color: var(--muted); font-size: .72em; margin-top: 2px; font-family: "Segoe UI", sans-serif; }
+  .row2 { display: grid; grid-template-columns: 90px 1fr 70px; gap: 12px; align-items: center; } .row2 label { font-size: .72em; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; } input[type=range] { padding: 0; accent-color: var(--accent); width: 100%; } .row2 output { font-size: .85em; text-align: right; }
+  #prev { background: var(--bg); border: 2px solid var(--line); padding: 12px 14px; line-height: 1.5; } .tg { margin-bottom: 4px; font-size: .68em; letter-spacing: 3px; color: var(--muted); } .themes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .th { border: 2px solid var(--line); cursor: pointer; overflow: hidden; } .th.on { border-color: var(--accent); outline: 2px solid var(--accent); } .th .sw { height: 46px; display: flex; align-items: flex-end; padding: 6px 8px; gap: 4px; } .th .sw i { width: 14px; height: 14px; display: block; } .th .nm { padding: 5px 8px; font-size: .78em; font-weight: 700; background: var(--panel2); font-family: "Segoe UI", sans-serif; }
 </style></head>
 <body>
-<header><h1>IMC-CHAT</h1><span class="sp"></span><span id="who"></span><button class="ghost" id="logout" style="display:none">Log out</button></header>
-<div id="app" style="display:none;flex:1;flex-direction:column;min-height:0">
-  <div id="tabs"><span id="tablist" style="display:flex;gap:2px"></span><form id="add"><input id="join" placeholder="join a channel..." autocomplete="off" spellcheck="false"><button>Join</button></form></div>
-  <main>
-    <div id="chatcol"><div id="empty">Join any channel with the box above. Type a name or paste a twitch.tv link.</div><div id="log" style="display:none"></div>
-      <form id="bar" style="display:none"><div id="reply"></div><input id="msg" placeholder="Send a message" autocomplete="off" maxlength="500"><button>Send</button></form></div>
-    <aside><h2>YOUR POLL</h2><div id="poll" class="muted">No poll right now.</div><h2 class="h">YOUR PREDICTION</h2><div id="pred" class="muted">No prediction right now.</div>
-      <p class="muted" style="margin-top:18px">Twitch only lets a channel's owner follow its polls and predictions, and gives viewers no way to vote from outside twitch.tv. So these show <b>your own channel</b>, and the Vote button opens the channel in your browser.</p></aside>
-  </main>
+<header><h1>IMC-CHAT</h1><span class="sp"></span><span id="who"></span><button class="ghost ic" id="gear" title="Settings" style="display:none"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.5 7.5 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.5 7.5 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.5 7.5 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg></button><button class="ghost" id="logout" style="display:none">Log out</button></header>
+<div id="app">
+  <div id="banner"><span>Reconnect Twitch once to turn on the moderator tools (they need new permissions).</span><button id="reconnect">Reconnect</button></div>
+  <div id="shell">
+    <div id="tabs"><form id="add"><input id="join" placeholder="join a channel..." autocomplete="off" spellcheck="false"><button>Join</button></form></div>
+    <main><div id="chatcol"><div id="empty">Join any channel with the box in the tab bar. Type a name or paste a twitch.tv link.</div><div id="log" style="display:none"></div>
+      <div id="modbar"></div><form id="bar" style="display:none"><div id="reply"></div><input id="msg" placeholder="Send a message" autocomplete="off" maxlength="500"><button>Send</button></form></div></main>
+  </div>
 </div>
-<div id="login" style="display:none"><h2 style="letter-spacing:5px;color:var(--aqua)">CONNECT TWITCH</h2><p class="muted">Press Connect, open the link Twitch shows and type the code. The app never sees your password.</p><div id="codebox" style="display:none"><div id="code"></div><p><a id="link" target="_blank" rel="noopener"></a></p></div><div><button id="connect">Connect Twitch</button></div><p id="lmsg" class="muted"></p></div>
-<div id="toast"></div>
+<div id="login"><h2 style="letter-spacing:5px;color:var(--accent)">CONNECT TWITCH</h2><p class="muted">Press Connect, open the link Twitch shows and type the code. The app never sees your password.</p><div id="codebox" style="display:none"><div id="code"></div><p><a id="link" target="_blank" rel="noopener"></a></p></div><div><button id="connect">Connect Twitch</button></div><p id="lmsg" class="muted"></p></div>
+<div id="tip"></div><div id="card"></div><div id="toast"></div>
+<div id="settings"><div class="box"><div class="top"><h2>SETTINGS</h2><button class="ghost" id="closeSet">Close</button></div>
+  <div class="sec"><h3>FONT</h3><div class="fonts" id="fontOpts"></div>
+    <div class="row2"><label>Size</label><input type="range" id="size" min="11" max="32" step="1"><output id="sizeO"></output></div>
+    <div class="row2"><label>Weight</label><input type="range" id="weight" min="100" max="900" step="100"><output id="weightO"></output></div>
+    <div id="prev">Casey: the quick brown fox jumps over the lazy dog 0123456789 &mdash; <b>bold</b> <i>italic</i><br>bdpq il1 O0 &mdash; "Hello, chat!" (how's it going?)</div></div>
+  <div class="sec"><h3>THEME</h3><div id="themeBox"></div></div>
+  <div class="sec"><h3>CHANNEL TABS</h3><div class="layouts"><div class="opt" data-l="horizontal"><div class="s">Horizontal</div><div class="d">Tabs in a row across the top</div></div><div class="opt" data-l="vertical"><div class="s">Vertical</div><div class="d">Tabs in a list on the left, with channel pictures</div></div></div></div>
+</div></div>
 <script>
-const $ = (id) => document.getElementById(id), esc = (x) => String(x == null ? '' : x).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const $ = (id) => document.getElementById(id), esc = (x) => String(x == null ? '' : x).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const safe = (u) => (/^https:\/\//.test(String(u || '')) ? esc(u) : '');
 const post = (p, b) => fetch('/api/' + p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b || {}) }).then((r) => r.json());
-function toast(t) { const e = $('toast'); e.textContent = t; e.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => e.style.display = 'none', 4000); }
-let S = null, cur = '', replyTo = null, unread = {}, ments = {}; const msgs = {}, badgeUrls = {};
-try { cur = localStorage.getItem('imc.tab') || ''; } catch (e) { /* private */ }
+const get = (p) => fetch('/api/' + p).then((r) => r.json());
+function toast(t) { const e = $('toast'); e.textContent = t; e.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => e.style.display = 'none', 4500); }
+const ICON = { sub: 'M12 2l3 6.5 7 .8-5.2 4.8 1.5 7L12 17.600 5.700 21.100l1.500-7L2 9.300l7-.8z', gift: 'M20 7h-2.200a3 3 0 0 0-5.800-1 3 3 0 0 0-5.800 1H4a1 1 0 0 0-1 1v3h18V8a1 1 0 0 0-1-1zM3 12v8a1 1 0 0 0 1 1h7v-9zm10 0v9h7a1 1 0 0 0 1-1v-8z',
+  raid: 'M5 2v20h2v-8h6l1 2h6V6h-6l-1-2H7V2z', announcement: 'M3 10v4h3l5 4V6L6 10zm13.500 2A4.500 4.500 0 0 0 14 8v8a4.500 4.500 0 0 0 2.500-4zM14 3.200v2.100a7 7 0 0 1 0 13.400v2.100a9 9 0 0 0 0-17.600z', bits: 'M12 2L3 9l9 13 9-13z', dot: 'M12 6a6 6 0 1 0 0 12 6 6 0 0 0 0-12z',
+  sword: 'M20.500 2.500l-9.300 9.300-1.800-1.800-1.400 1.400 1.800 1.800-4.300 4.300-2.200-.7-1.100 1.100 3.600 3.600 1.100-1.100-.7-2.200 4.300-4.300 1.800 1.800 1.400-1.400-1.800-1.800 9.300-9.300V2.500z' };
+const svg = (k) => '<svg viewBox="0 0 24 24"><path d="' + (ICON[k] || ICON.dot) + '"/></svg>';
 
+const THEMES = [
+  { id: 'forge', name: 'Forge', g: 'Dark', v: ['#222A2A', '#1A2020', '#151b1b', '#E2DAC2', '#9aa39f', '#4FBBBC', '#F39120', '#EC4624', '#2f3938', '#222A2A', '#1A2020', '#2a3333'] },
+  { id: 'midnight', name: 'Midnight', g: 'Dark', v: ['#0f1420', '#0a0e17', '#080b12', '#dfe6f5', '#8892a8', '#6aa8ff', '#ff9ecb', '#ff5c7a', '#1f2740', '#0f1420', '#0a0e17', '#18203a'] },
+  { id: 'ember', name: 'Ember', g: 'Dark', v: ['#1c1210', '#140c0a', '#100907', '#f3e3d3', '#a8917f', '#ff7a3d', '#ffc857', '#e63946', '#35231d', '#1c1210', '#140c0a', '#2b1b16'] },
+  { id: 'dusk', name: 'Dusk', g: 'Mid', v: ['#4a4560', '#3d3952', '#35314a', '#f2eefc', '#c0bad6', '#ffd37a', '#ff9cc2', '#ff6b6b', '#605a7c', '#3d3952', '#2f2b42', '#58526f'] },
+  { id: 'slate', name: 'Slate', g: 'Mid', v: ['#5b6b73', '#4b5a62', '#41505a', '#f1f6f7', '#c3d0d4', '#9ee0d4', '#ffb26b', '#ff7a6b', '#72838c', '#4b5a62', '#34424a', '#687a83'] },
+  { id: 'moss', name: 'Moss', g: 'Mid', v: ['#4d5a45', '#414d3a', '#384333', '#f1f2e2', '#c3c9b0', '#e6d38a', '#9bd1a6', '#f08a6a', '#66755c', '#414d3a', '#303a2b', '#5a684f'] },
+  { id: 'cream', name: 'Cream', g: 'Light', v: ['#E2DAC2', '#d4cbb0', '#cbc2a6', '#222A2A', '#5d655f', '#17797a', '#b8620f', '#b13a22', '#b9b093', '#f1ebd8', '#f1ebd8', '#d8cfb5'] },
+  { id: 'paper', name: 'Paper', g: 'Light', v: ['#fafafa', '#ececec', '#e2e2e2', '#1c1c1c', '#666666', '#2a5bd7', '#d4562a', '#c62828', '#d0d0d0', '#ffffff', '#ffffff', '#efefef'] },
+  { id: 'sky', name: 'Sky', g: 'Light', v: ['#e3f0fa', '#d2e5f4', '#c6dcee', '#17314a', '#58738c', '#0a7bbd', '#c9651a', '#c0392b', '#aac7de', '#f3f9fd', '#f3f9fd', '#d9eaf6'] },
+];
+const KEYS = ['--bg', '--panel', '--panel2', '--text', '--muted', '--accent', '--accent2', '--danger', '--line', '--input', '--on', '--hover'];
+const WN = { 100: 'Thin', 200: 'ExtraLight', 300: 'Light', 400: 'Regular', 500: 'Medium', 600: 'SemiBold', 700: 'Bold', 800: 'ExtraBold', 900: 'Black' };
+const FONTS = [{ id: 'IMC Sans', d: 'Clean and rounded' }, { id: 'IMC Serif', d: 'Warm, with small feet' }, { id: 'IMC Dyslexia', d: 'Heavy base, wide spacing, letters that do not mirror' }, { id: 'system', d: 'Your Windows font' }];
+let S = null, cur = '', replyTo = null, light = false, loaded = false; const unread = {}, ments = {}, msgs = {}, badgeUrls = {}, modModes = {}, userCache = {};
+
+function lum(hex) { const h = hex.replace('#', ''), c = [0, 2, 4].map((i) => parseInt(h.substr(i, 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4))); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
+function fixColor(c) {   // names stay readable on the chosen theme
+  if (!/^#[0-9a-f]{6}$/i.test(c || '')) return 'var(--accent)'; const l = lum(c);
+  if (light && l > 0.35) { const k = 0.55; return '#' + [1, 3, 5].map((i) => Math.round(parseInt(c.substr(i, 2), 16) * k).toString(16).padStart(2, '0')).join(''); }
+  if (!light && l < 0.12) { return '#' + [1, 3, 5].map((i) => Math.round(255 - (255 - parseInt(c.substr(i, 2), 16)) * 0.45).toString(16).padStart(2, '0')).join(''); }
+  return c;
+}
+function applySettings(s) {
+  const t = THEMES.find((x) => x.id === s.theme) || THEMES[0], r = document.documentElement.style; KEYS.forEach((k, i) => r.setProperty(k, t.v[i])); light = lum(t.v[0]) > 0.4;
+  r.setProperty('--font', s.font === 'system' ? '"Segoe UI",system-ui,sans-serif' : '"' + s.font + '","Segoe UI",sans-serif'); r.setProperty('--size', s.size + 'px'); r.setProperty('--fw', s.weight);
+  document.body.classList.toggle('vertical', s.layout === 'vertical'); if (loaded) drawSettings();
+}
+function drawSettings() {
+  const s = S.settings; $('fontOpts').innerHTML = FONTS.map((f) => '<div class="opt' + (s.font === f.id ? ' on' : '') + '" data-f="' + esc(f.id) + '"><div class="s" style="font-family:' + (f.id === 'system' ? '\'Segoe UI\'' : '\'' + f.id + '\'') + '">' + esc(f.id === 'system' ? 'System' : f.id) + '</div><div class="d">' + esc(f.d) + '</div></div>').join('');
+  $('size').value = s.size; $('sizeO').textContent = s.size + ' px'; $('weight').value = s.weight; $('weightO').textContent = WN[s.weight];
+  $('themeBox').innerHTML = ['Dark', 'Mid', 'Light'].map((g) => '<div class="tg">' + g.toUpperCase() + '</div><div class="themes">' + THEMES.filter((t) => t.g === g).map((t) => '<div class="th' + (s.theme === t.id ? ' on' : '') + '" data-t="' + t.id + '"><div class="sw" style="background:' + t.v[0] + '"><i style="background:' + t.v[5] + '"></i><i style="background:' + t.v[6] + '"></i><i style="background:' + t.v[7] + '"></i><i style="background:' + t.v[3] + '"></i></div><div class="nm" style="background:' + t.v[1] + ';color:' + t.v[3] + '">' + t.name + '</div></div>').join('') + '</div>').join('');
+  document.querySelectorAll('.layouts .opt').forEach((o) => o.classList.toggle('on', o.dataset.l === s.layout));
+}
+let saveT = null; function save(b) { Object.assign(S.settings, b); applySettings(S.settings); clearTimeout(saveT); saveT = setTimeout(() => post('settings', S.settings), 250); }
+
+// ---------------------------------------------------------------- status, tabs
 function drawStatus(s) {
-  S = s; const ok = s.auth.status === 'ok';
-  $('login').style.display = ok ? 'none' : 'grid'; $('app').style.display = ok ? 'flex' : 'none'; $('logout').style.display = ok ? '' : 'none'; $('who').textContent = ok ? s.login + (s.connected ? '' : ' (connecting...)') : '';
+  const first = !S; S = s; const ok = s.auth.status === 'ok';
+  $('login').style.display = ok ? 'none' : 'grid'; $('app').style.display = ok ? 'flex' : 'none'; $('logout').style.display = ok ? '' : 'none'; $('gear').style.display = ok ? '' : 'none'; $('who').textContent = ok ? s.login + (s.connected ? '' : ' (connecting...)') : '';
+  $('banner').style.display = ok && s.needsModScopes ? 'flex' : 'none';
   $('codebox').style.display = s.device ? '' : 'none'; if (s.device) { $('code').textContent = s.device.code; $('link').href = s.device.url; $('link').textContent = s.device.url; }
   $('lmsg').textContent = s.device ? 'Waiting for you to approve it on Twitch... (this page continues by itself)' : s.auth.status === 'error' ? s.auth.message : ''; $('connect').textContent = s.device ? 'Open the link again' : 'Connect Twitch';
+  loaded = true; applySettings(s.settings);
+  if (first && s.settings.active && s.channels.some((c) => c.login === s.settings.active)) cur = s.settings.active;
   if (!s.channels.some((c) => c.login === cur)) cur = s.channels[0] ? s.channels[0].login : '';
-  drawTabs(); drawPoll(s);
+  drawTabs(); if (first && cur) openTab(cur); drawModbar();
 }
+const chan = (l) => (S ? S.channels.find((c) => c.login === l) : null);
 function drawTabs() {
-  $('tablist').innerHTML = S.channels.map((c) => '<div class="tab' + (c.login === cur ? ' on' : '') + (unread[c.login] ? ' new' : '') + (ments[c.login] ? ' ment' : '') + '" data-c="' + esc(c.login) + '"><span class="dot"></span>' + esc(c.name) + '<span class="x" data-x="' + esc(c.login) + '">&#10005;</span></div>').join('');
+  const tabs = S.channels.map((c) => '<div class="tab' + (c.login === cur ? ' on' : '') + (unread[c.login] ? ' new' : '') + (ments[c.login] ? ' ment' : '') + '" draggable="true" data-c="' + esc(c.login) + '">' + (S.settings.layout === 'vertical' && safe(c.image) ? '<img class="av" src="' + safe(c.image) + '" alt="">' : '') + '<span class="dot"></span><span class="nm">' + esc(c.name) + '</span>' + (c.mod ? '<span class="sw" data-tip="You are a moderator here">' + svg('sword') + '</span>' : '') + '<span class="x" data-x="' + esc(c.login) + '">&#10005;</span></div>').join('');
+  const add = $('add'); $('tabs').innerHTML = tabs; $('tabs').appendChild(add);
   const has = !!cur; $('empty').style.display = has ? 'none' : ''; $('log').style.display = has ? '' : 'none'; $('bar').style.display = has ? 'flex' : 'none'; $('msg').placeholder = has ? 'Send a message to ' + cur : '';
 }
-function frag(f) { return f.type === 'emote' ? '<img alt="' + esc(f.text) + '" title="' + esc(f.text) + '" src="https://static-cdn.jtvnw.net/emoticons/v2/' + encodeURIComponent(f.id) + '/default/dark/2.0">' : esc(f.text); }
+
+// ---------------------------------------------------------------- messages
+function frag(f) {
+  if (f.gif) return '<img class="gif" loading="lazy" src="' + safe(f.gif.url) + '" alt="GIF">';
+  if (f.type === 'emote') return '<img class="e" alt="' + esc(f.text) + '" data-tip="' + esc(f.text) + '" data-img="https://static-cdn.jtvnw.net/emoticons/v2/' + encodeURIComponent(f.id) + '/default/dark/3.0" src="https://static-cdn.jtvnw.net/emoticons/v2/' + encodeURIComponent(f.id) + '/default/dark/2.0">';
+  if (f.type === 'cheermote') return '<b style="color:var(--accent)">' + esc(f.text) + '</b>';
+  if (f.type === 'mention') return '<b style="color:var(--accent2)">' + esc(f.text) + '</b>';
+  return esc(f.text);
+}
+const clock = (ts) => { const d = new Date(ts); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+function badgeImgs(m) { const B = badgeUrls[m.channel] || {}; return m.badges.map((b) => (B[b] && safe(B[b].u) ? '<img class="bd" data-tip="' + esc(B[b].t) + '" src="' + safe(B[b].u) + '" alt="">' : '')).join(''); }
+const EVNAME = { sub: 'New subscriber', resub: 'Resub', sub_gift: 'Gift sub', community_sub_gift: 'Gift subs', gift_paid_upgrade: 'Upgraded', prime_paid_upgrade: 'Upgraded', raid: 'Raid', unraid: 'Raid ended', pay_it_forward: 'Paying it forward', announcement: 'Announcement', bits_badge_tier: 'Bits badge', charity_donation: 'Charity', shared_chat_sub: 'Shared chat' };
 function line(m) {
-  const d = new Date(m.ts), t = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-  return '<div class="m' + (m.mention ? ' ment' : '') + (m.mine ? ' mine' : '') + '" data-id="' + esc(m.id) + '">' + (m.reply ? '<span class="rp">&#8627; @' + esc(m.reply.name) + ': ' + esc(m.reply.text) + '</span>' : '') + '<span class="t">' + t + '</span>' + m.badges.map((b) => { const u = (badgeUrls[m.channel] || {})[b]; return u ? '<img class="bd" title="' + esc(b.split('/')[0]) + '" src="' + esc(u) + '">' : ''; }).join('')
-    + '<span class="n" style="color:' + esc(m.color || '#4FBBBC') + '">' + esc(m.name) + '</span>: ' + m.frags.map(frag).join('') + '<span class="rb" data-reply="' + esc(m.id) + '" data-name="' + esc(m.name) + '">reply</span></div>';
+  if (m.event) {
+    const k = m.event, ic = k === 'announcement' ? 'announcement' : k === 'raid' ? 'raid' : /gift/.test(k) ? 'gift' : /sub/.test(k) ? 'sub' : k === 'bits_badge_tier' ? 'bits' : 'dot', head = EVNAME[k] || k.replace(/_/g, ' ');
+    return '<div class="ev ev-' + esc(k) + (m.color ? ' an-' + esc(m.color) : '') + '" data-id="' + esc(m.id) + '">' + svg(ic) + '<div><div class="hd">' + esc(head) + (k === 'announcement' ? ' <span class="who">from ' + esc(m.name) + '</span>' : '') + ' <span class="t" style="font-weight:400;font-size:.7em;color:var(--muted)">' + clock(m.ts) + '</span></div>' +
+      (m.system ? '<div class="bd2">' + esc(m.system) + '</div>' : '') + (m.text ? '<div class="bd2">' + (k === 'announcement' ? '' : '<span class="who">' + esc(m.name) + ': </span>') + m.frags.map(frag).join('') + '</div>' : '') + '</div></div>';
+  }
+  const ch = chan(m.channel), canMod = ch && ch.mod && !m.mine && !(m.badges || []).some((b) => /^(broadcaster|moderator)\//.test(b));
+  const cls = ['m', m.mention && 'ment', m.mine && 'mine', m.bits && 'cheer', m.kind === 'channel_points_highlighted' && 'hl'].filter(Boolean).join(' ');
+  return '<div class="' + cls + '" data-id="' + esc(m.id) + '" data-uid="' + esc(m.uid) + '">' + (m.reply ? '<span class="rp">&#8627; @' + esc(m.reply.name) + ': ' + esc(m.reply.text) + '</span>' : '') + '<span class="t">' + clock(m.ts) + '</span>' + (m.kind === 'user_intro' ? '<span class="tag">first message</span>' : '') + (m.bits ? '<span class="tag">' + m.bits + ' bits</span>' : '') + badgeImgs(m)
+    + '<span class="n" data-user="' + esc(m.uid) + '" style="color:' + esc(fixColor(m.color)) + '">' + esc(m.name) + '</span>: ' + m.frags.map(frag).join('')
+    + '<span class="acts"><span data-reply="' + esc(m.id) + '" data-name="' + esc(m.name) + '">reply</span>' + (canMod ? '<span class="dg" data-del="' + esc(m.id) + '">delete</span><span data-to="' + esc(m.uid) + '">10m</span><span class="dg" data-ban="' + esc(m.uid) + '">ban</span>' : '') + '</span></div>';
 }
 function render() { const L = $('log'); L.innerHTML = (msgs[cur] || []).filter((m) => !m.gone).map(line).join(''); L.scrollTop = L.scrollHeight; }
 function addMsg(m) {
-  loadBadges(m.channel);
-  const a = msgs[m.channel] = msgs[m.channel] || []; if (a.some((x) => x.id === m.id)) return; a.push(m); if (a.length > 400) a.shift();
+  loadBadges(m.channel); const a = msgs[m.channel] = msgs[m.channel] || []; if (a.some((x) => x.id === m.id)) return; a.push(m); if (a.length > 400) a.shift();
   if (m.channel === cur) { const L = $('log'), stick = L.scrollHeight - L.scrollTop - L.clientHeight < 80; L.insertAdjacentHTML('beforeend', line(m)); while (L.children.length > 400) L.removeChild(L.firstChild); if (stick) L.scrollTop = L.scrollHeight; }
   else { unread[m.channel] = true; if (m.mention) ments[m.channel] = true; drawTabs(); }
 }
-async function loadBadges(c) { if (c && !badgeUrls[c]) { badgeUrls[c] = await fetch('/api/badges?channel=' + encodeURIComponent(c)).then((r) => r.json()).catch(() => ({})); if (c === cur) render(); } }
-async function openTab(c) { cur = c; loadBadges(c); unread[c] = false; ments[c] = false; replyTo = null; $('reply').style.display = 'none'; try { localStorage.setItem('imc.tab', c); } catch (e) { /* private */ } if (c && !msgs[c]) msgs[c] = await fetch('/api/history?channel=' + encodeURIComponent(c)).then((r) => r.json()); drawTabs(); render(); }
-function drawPoll(s) {
-  const p = s.poll, q = s.prediction, me = s.login;
-  $('poll').innerHTML = p ? '<div class="card"><div class="q">' + esc(p.title) + (p.done ? ' <span class="muted">(ended)</span>' : '') + '</div>' + (p.choices || []).map((c) => { const tot = (p.choices || []).reduce((a, x) => a + (x.votes || 0), 0) || 1; return '<div class="opt">' + esc(c.title) + ' <span class="muted">' + (c.votes || 0) + '</span><div class="bar"><i style="width:' + Math.round(100 * (c.votes || 0) / tot) + '%"></i></div></div>'; }).join('') + (p.done ? '' : '<a href="https://www.twitch.tv/' + esc(me) + '" target="_blank" rel="noopener">Open channel to vote</a>') + '</div>' : 'No poll right now.';
-  $('pred').innerHTML = q ? '<div class="card"><div class="q">' + esc(q.title) + (q.done ? ' <span class="muted">(' + esc(q.status || 'ended') + ')</span>' : q.locked_at ? ' <span class="muted">(locked)</span>' : '') + '</div>' + (q.outcomes || []).map((o) => '<div class="opt" style="color:' + (o.color === 'pink' ? '#e48' : '#4FBBBC') + '">' + esc(o.title) + (q.winning_outcome_id === o.id ? ' &#10003;' : '') + ' <span class="muted">' + (o.users || 0) + ' people, ' + (o.channel_points || 0) + ' pts</span></div>').join('') + (q.done || q.locked_at ? '' : '<a href="https://www.twitch.tv/' + esc(me) + '" target="_blank" rel="noopener">Open channel to predict</a>') + '</div>' : 'No prediction right now.';
+async function loadBadges(c) { if (c && !badgeUrls[c]) { badgeUrls[c] = {}; badgeUrls[c] = await get('badges?channel=' + encodeURIComponent(c)).catch(() => ({})); if (c === cur) render(); } }
+async function openTab(c) {
+  cur = c; unread[c] = false; ments[c] = false; replyTo = null; $('reply').style.display = 'none'; if (S.settings.active !== c) save({ active: c }); loadBadges(c);
+  if (c && !msgs[c]) { msgs[c] = []; const h = await get('history?channel=' + encodeURIComponent(c)); const have = new Set(msgs[c].map((x) => x.id)); msgs[c] = h.filter((x) => !have.has(x.id)).concat(msgs[c]); } drawTabs(); render(); drawModbar(true);
 }
+
+// ---------------------------------------------------------------- moderator tools
+async function modDo(action, o) { const r = await post('mod', Object.assign({ channel: cur, action }, o || {})); if (r.error) { toast(r.error); return null; } return r; }
+async function drawModbar(fetchModes) {
+  const c = chan(cur), el = $('modbar'); if (!c || !c.mod || S.needsModScopes) { el.style.display = 'none'; return; }
+  el.style.display = 'flex'; if (fetchModes) { const r = await post('mod', { channel: cur, action: 'settings' }); if (!r.error) modModes[cur] = r; }
+  const md = modModes[cur] || {}, b = (k, label, on) => '<button class="ghost' + (on ? ' on' : '') + '" data-mode="' + k + '" data-on="' + (on ? 1 : 0) + '">' + label + '</button>';
+  el.innerHTML = '<span class="lb">' + svg('sword') + 'MOD TOOLS</span>' + b('slow', 'Slow' + (md.slow ? ' ' + md.slow + 's' : ''), !!md.slow) + b('followers', 'Followers', md.followers >= 0 && md.followers != null) + b('subs', 'Subs only', md.subs) + b('emotes', 'Emote only', md.emotes) + b('unique', 'Unique', md.unique) + '<button class="danger" data-clear="1">Clear chat</button>';
+}
+$('modbar').onclick = async (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.clear) { if (b.dataset.sure) { b.dataset.sure = ''; b.textContent = 'Clear chat'; await modDo('clear'); } else { b.dataset.sure = '1'; b.textContent = 'Press again to clear'; setTimeout(() => { b.dataset.sure = ''; b.textContent = 'Clear chat'; }, 3000); } return; }
+  const k = b.dataset.mode; if (!k) return; const on = b.dataset.on !== '1'; if (await modDo(k, { on, value: k === 'slow' ? 30 : 0 })) drawModbar(true);
+};
+
+// ---------------------------------------------------------------- hover tips and the user card
+const tip = $('tip'), card = $('card'); let tipT = null, cardT = null, cardFor = '';
+const place = (el, x, y) => { el.style.display = 'block'; const w = el.offsetWidth, h = el.offsetHeight; el.style.left = Math.max(6, Math.min(innerWidth - w - 6, x)) + 'px'; el.style.top = Math.max(6, Math.min(innerHeight - h - 6, y)) + 'px'; };
+function ago(iso) { const d = Date.now() - new Date(iso).getTime(), y = Math.floor(d / 31557600000), mo = Math.floor(d / 2629800000) % 12; return y > 0 ? y + ' year' + (y > 1 ? 's' : '') + (mo ? ', ' + mo + ' month' + (mo > 1 ? 's' : '') : '') : mo > 0 ? mo + ' month' + (mo > 1 ? 's' : '') : Math.max(1, Math.floor(d / 86400000)) + ' days'; }
+async function showCard(el) {
+  const uid = el.dataset.user, row = el.closest('.m'), m = (msgs[cur] || []).find((x) => x.id === (row && row.dataset.id)); if (!m) return; cardFor = uid;
+  const r = el.getBoundingClientRect(), ch = chan(cur), B = badgeUrls[cur] || {}, canMod = ch && ch.mod && !m.mine && !S.needsModScopes && !(m.badges || []).some((b) => /^broadcaster\//.test(b));
+  const info = userCache[uid] || (userCache[uid] = await get('user?id=' + encodeURIComponent(uid)).catch(() => ({}))); if (cardFor !== uid) return;
+  card.innerHTML = '<div class="top"></div><div class="bodyc"><div class="hd">' + (info.image ? '<img class="pic" src="' + safe(info.image) + '" alt="">' : '<div class="pic"></div>') + '<div><div class="nm" style="color:' + esc(fixColor(m.color)) + '">' + esc(m.name) + '</div><div class="lg">@' + esc(m.login) + '</div></div></div>'
+    + ((m.badges || []).length ? '<div class="chips">' + m.badges.map((b) => '<span class="chip">' + (B[b] && safe(B[b].u) ? '<img src="' + safe(B[b].u) + '" alt="">' : '') + esc(B[b] ? B[b].t : b.split('/')[0]) + '</span>').join('') + '</div>' : '')
+    + '<div class="kv">' + (info.created ? '<b>Account</b><span>' + esc(ago(info.created)) + ' old <span class="lg">(' + esc(info.created.slice(0, 10)) + ')</span></span>' : '') + (info.kind ? '<b>Type</b><span>' + esc(info.kind) + '</span>' : '') + '<b>Channel</b><span>' + esc(ch ? ch.name : cur) + '</span></div>'
+    + (info.bio ? '<div class="bio">' + esc(info.bio) + '</div>' : '')
+    + (canMod ? '<div class="mods"><div class="lb">' + svg('sword') + 'MODERATE</div><button class="ghost" data-t="60">1m</button><button class="ghost" data-t="600">10m</button><button class="ghost" data-t="3600">1h</button><button class="ghost" data-t="86400">1d</button><button data-d="1">Delete msg</button><button style="background:var(--danger);color:#fff" data-b="1">Ban</button><button class="ghost" data-u="1">Unban</button></div>' : '') + '</div>';
+  card.dataset.uid = uid; card.dataset.mid = m.id; place(card, r.left, r.bottom + 6 + 330 > innerHeight ? r.top - card.offsetHeight - 6 : r.bottom + 6);
+  if (r.bottom + card.offsetHeight + 6 > innerHeight) card.style.top = Math.max(6, r.top - card.offsetHeight - 6) + 'px';
+}
+const hideCard = () => { cardFor = ''; card.style.display = 'none'; };
+document.addEventListener('mouseover', (e) => {
+  const n = e.target.closest('[data-user]'), t = e.target.closest('[data-tip]');
+  if (n) { clearTimeout(cardT); cardT = setTimeout(() => showCard(n), 350); return; }
+  if (t && !t.closest('#card')) { clearTimeout(tipT); tipT = setTimeout(() => { tip.innerHTML = '<b>' + esc(t.dataset.tip) + '</b>' + (t.dataset.img ? '<img src="' + esc(t.dataset.img) + '" alt="">' : ''); const r = t.getBoundingClientRect(); place(tip, r.left + r.width / 2 - 40, r.bottom + 8); if (r.bottom + tip.offsetHeight + 8 > innerHeight) tip.style.top = r.top - tip.offsetHeight - 8 + 'px'; }, 120); }
+});
+document.addEventListener('mouseout', (e) => {
+  if (e.target.closest('[data-tip]')) { clearTimeout(tipT); tip.style.display = 'none'; }
+  if (e.target.closest('[data-user]')) { clearTimeout(cardT); cardT = setTimeout(() => { if (!card.matches(':hover')) hideCard(); }, 300); }
+});
+card.onmouseleave = () => { clearTimeout(cardT); cardT = setTimeout(hideCard, 250); };
+card.onclick = async (e) => {
+  const b = e.target.closest('button'); if (!b) return; const uid = card.dataset.uid, mid = card.dataset.mid; let ok = null;
+  if (b.dataset.t) ok = await modDo('timeout', { userId: uid, seconds: Number(b.dataset.t) }); else if (b.dataset.d) ok = await modDo('delete', { messageId: mid }); else if (b.dataset.b) ok = await modDo('ban', { userId: uid }); else if (b.dataset.u) ok = await modDo('unban', { userId: uid });
+  if (ok) { toast('Done'); hideCard(); }
+};
+$('log').onclick = async (e) => {
+  const t = e.target.dataset;
+  if (t.reply) { replyTo = t.reply; $('reply').innerHTML = 'Replying to ' + esc(t.name) + '<b id="nore">cancel</b>'; $('reply').style.display = 'block'; $('msg').focus(); $('nore').onclick = () => { replyTo = null; $('reply').style.display = 'none'; }; }
+  else if (t.del) { if (await modDo('delete', { messageId: t.del })) toast('Deleted'); }
+  else if (t.to) { if (await modDo('timeout', { userId: t.to, seconds: 600 })) toast('Timed out for 10 minutes'); }
+  else if (t.ban) { if (e.target.dataset.sure) { if (await modDo('ban', { userId: t.ban })) toast('Banned'); } else { e.target.dataset.sure = '1'; e.target.textContent = 'sure?'; setTimeout(() => { e.target.dataset.sure = ''; e.target.textContent = 'ban'; }, 3000); } }
+};
+
+// ---------------------------------------------------------------- wiring
 $('connect').onclick = async () => { const r = await post('login'); if (r.error) return ($('lmsg').textContent = r.error); drawStatus(r); if (r.device) window.open(r.device.url, '_blank'); };
-$('logout').onclick = async () => { drawStatus(await post('logout')); };
-$('add').onsubmit = async (e) => { e.preventDefault(); const v = $('join').value.trim(); if (!v) return; const r = await post('join', { channel: v }); if (r.error) return toast(r.error); $('join').value = ''; drawStatus(r); const c = r.channels[r.channels.length - 1]; openTab(c.login); };
-$('tablist').onclick = async (e) => { const x = e.target.dataset.x; if (x) { const r = await post('leave', { channel: x }); drawStatus(r); return openTab(cur); } const t = e.target.closest('.tab'); if (t) openTab(t.dataset.c); };
-$('log').onclick = (e) => { const r = e.target.dataset.reply; if (r) { replyTo = r; $('reply').innerHTML = 'Replying to ' + esc(e.target.dataset.name) + '<b id="nore">cancel</b>'; $('reply').style.display = 'block'; $('msg').focus(); $('nore').onclick = () => { replyTo = null; $('reply').style.display = 'none'; }; } };
+$('reconnect').onclick = $('connect').onclick; $('logout').onclick = async () => { drawStatus(await post('logout')); };
+$('add').onsubmit = async (e) => { e.preventDefault(); const v = $('join').value.trim(); if (!v) return; const r = await post('join', { channel: v }); if (r.error) return toast(r.error); $('join').value = ''; drawStatus(r); openTab(r.channels[r.channels.length - 1].login); };
+$('tabs').onclick = async (e) => { const x = e.target.dataset.x; if (x) { drawStatus(await post('leave', { channel: x })); return openTab(cur); } const t = e.target.closest('.tab'); if (t) openTab(t.dataset.c); };
+let dragC = ''; $('tabs').ondragstart = (e) => { const t = e.target.closest('.tab'); if (t) dragC = t.dataset.c; };
+$('tabs').ondragover = (e) => { const t = e.target.closest('.tab'); if (t && dragC) { e.preventDefault(); document.querySelectorAll('.tab.drop').forEach((x) => x.classList.remove('drop')); t.classList.add('drop'); } };
+$('tabs').ondrop = async (e) => { const t = e.target.closest('.tab'); if (t && dragC && t.dataset.c !== dragC) { e.preventDefault(); drawStatus(await post('move', { channel: dragC, to: S.channels.findIndex((c) => c.login === t.dataset.c) })); } dragC = ''; document.querySelectorAll('.tab.drop').forEach((x) => x.classList.remove('drop')); };
 $('bar').onsubmit = async (e) => { e.preventDefault(); const t = $('msg').value.trim(); if (!t || !cur) return; const r = await post('send', { channel: cur, text: t, replyTo }); if (r.error) return toast(r.error); $('msg').value = ''; replyTo = null; $('reply').style.display = 'none'; };
+$('gear').onclick = () => { drawSettings(); $('settings').style.display = 'flex'; }; $('closeSet').onclick = () => { $('settings').style.display = 'none'; }; $('settings').onclick = (e) => { if (e.target === $('settings')) $('settings').style.display = 'none'; };
+$('fontOpts').onclick = (e) => { const o = e.target.closest('.opt'); if (o) save({ font: o.dataset.f }); };
+$('size').oninput = (e) => save({ size: Number(e.target.value) }); $('weight').oninput = (e) => save({ weight: Number(e.target.value) });
+$('themeBox').onclick = (e) => { const o = e.target.closest('.th'); if (o) save({ theme: o.dataset.t }); };
+document.querySelector('.layouts').onclick = (e) => { const o = e.target.closest('.opt'); if (o) { save({ layout: o.dataset.l }); drawTabs(); } };
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('settings').style.display = 'none'; hideCard(); } });
 const es = new EventSource('/events');
-es.addEventListener('status', (e) => { const first = !S; drawStatus(JSON.parse(e.data)); if (first && cur) openTab(cur); });
+es.addEventListener('status', (e) => drawStatus(JSON.parse(e.data)));
 es.addEventListener('chat', (e) => addMsg(JSON.parse(e.data)));
 es.addEventListener('chatmod', (e) => { const m = JSON.parse(e.data), a = msgs[m.channel] || []; if (m.type === 'clear') msgs[m.channel] = []; else for (const x of a) if (m.type === 'delete' ? x.id === m.id : x.uid === m.uid) x.gone = true; if (m.channel === cur) render(); });
 </script></body></html>

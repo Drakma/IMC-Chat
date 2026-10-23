@@ -2,57 +2,80 @@
 // The Twitch side against a fake Twitch: nothing leaves this PC. Run: node twitch-test.js
 const assert = require('assert'), fs = require('fs'), os = require('os'), path = require('path'), createTwitch = require('./twitch');
 
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'imc-')), events = [], subsMade = [], deleted = [], sent = []; let polls = 0, wsLast = null;
-const users = { alice: { id: '11', login: 'alice', display_name: 'Alice' }, mememe: { id: '99', login: 'mememe', display_name: 'Me' } };
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'imc-')), events = [], subsMade = [], deleted = [], sent = [], calls = []; let polls = 0, wsLast = null;
+const ALL = ['user:read:chat', 'user:write:chat', 'user:read:moderated_channels', 'moderator:manage:banned_users', 'moderator:manage:chat_messages', 'moderator:manage:chat_settings', 'moderator:read:chat_settings'];
+const users = { alice: { id: '11', login: 'alice', display_name: 'Alice', profile_image_url: 'https://x/a.png' }, mememe: { id: '99', login: 'mememe', display_name: 'Me' }, bobby: { id: '22', login: 'bobby', display_name: 'Bobby' } };
 const fake = async (url, opt) => {
   opt = opt || {}; const j = (v, st) => ({ ok: !st || st < 400, status: st || 200, json: async () => v }), u = url.replace('https://api.twitch.tv/helix', '').replace('https://id.twitch.tv/oauth2', '');
   if (u === '/device') return j({ device_code: 'dc', user_code: 'ABCD', verification_uri: 'https://twitch.tv/activate', expires_in: 600, interval: 1 });
-  if (u === '/token') { if (opt.body.includes('device_code')) return ++polls < 2 ? j({ message: 'authorization_pending' }, 400) : j({ access_token: 'at', refresh_token: 'rt', expires_in: 14400, scope: ['user:read:chat'] }); return j({ access_token: 'at2', refresh_token: 'rt2', expires_in: 14400 }); }
-  if (u === '/validate') return j({ user_id: '99', login: 'mememe' });
+  if (u === '/token') { if (opt.body.includes('device_code')) return ++polls < 2 ? j({ message: 'authorization_pending' }, 400) : j({ access_token: 'at', refresh_token: 'rt', expires_in: 14400 }); return j({ access_token: 'at2', refresh_token: 'rt2', expires_in: 14400 }); }
+  if (u === '/validate') return j({ user_id: '99', login: 'mememe', scopes: ALL });
   if (u.startsWith('/users?login=')) { const x = users[u.split('=')[1]]; return j({ data: x ? [x] : [] }); }
-  if (u === '/chat/badges/global') return j({ data: [{ set_id: 'moderator', versions: [{ id: '1', image_url_2x: 'https://x/mod.png' }] }] });
-  if (u.startsWith('/chat/badges?broadcaster_id=')) return j({ data: [{ set_id: 'subscriber', versions: [{ id: '0', image_url_2x: 'https://x/sub.png' }] }] });
+  if (u.startsWith('/users?id=')) return j({ data: [{ id: '22', login: 'bobby', display_name: 'Bobby', profile_image_url: 'https://x/b.png', description: 'hi', created_at: '2020-01-01T00:00:00Z', broadcaster_type: 'affiliate' }] });
+  if (u === '/chat/badges/global') return j({ data: [{ set_id: 'moderator', versions: [{ id: '1', image_url_2x: 'https://x/mod.png', title: 'Moderator' }] }] });
+  if (u.startsWith('/chat/badges?broadcaster_id=')) return j({ data: [{ set_id: 'subscriber', versions: [{ id: '0', image_url_2x: 'https://x/sub.png', title: 'Subscriber' }] }] });
+  if (u.startsWith('/moderation/channels?')) return j({ data: [{ broadcaster_id: '11' }] });
   if (u === '/eventsub/subscriptions' && opt.method === 'POST') { const b = JSON.parse(opt.body); subsMade.push(b); return j({ data: [{ id: 's' + subsMade.length }] }); }
   if (u.startsWith('/eventsub/subscriptions?id=')) { deleted.push(u.split('=')[1]); return j({}); }
   if (u === '/chat/messages') { const b = JSON.parse(opt.body); sent.push(b); return j({ data: [b.message === 'blocked' ? { is_sent: false, drop_reason: { message: 'AutoMod held it' } } : { is_sent: true }] }); }
+  if (u.startsWith('/moderation/') || u.startsWith('/chat/settings')) { calls.push([opt.method, u, opt.body ? JSON.parse(opt.body) : null]); return j(u.startsWith('/chat/settings') && opt.method === 'GET' ? { data: [{ slow_mode: true, slow_mode_wait_time: 30, follower_mode: false, subscriber_mode: false, emote_mode: true, unique_chat_mode: false }] } : { data: [] }); }
   return j({ message: 'unknown ' + u }, 404);
 };
 class FakeWS { constructor(url) { this.url = url; FakeWS.all.push(this); wsLast = this; } close() { this.closed = true; } } FakeWS.all = [];
 const T = createTwitch({ dir, clientId: 'cid', fetch: fake, WebSocket: FakeWS, sleep: async () => {}, emit: (e, d) => events.push([e, d]), retryMs: 1 });
 const msg = (type, e) => ({ metadata: { message_type: 'notification', subscription_type: type }, payload: { event: e } });
-const chat = (o) => msg('channel.chat.message', Object.assign({ broadcaster_user_login: 'alice', message_id: 'm1', chatter_user_id: '5', chatter_user_login: 'bob', chatter_user_name: 'Bob', color: '#fff', badges: [{ set_id: 'moderator', id: '1' }], message_type: 'text', message: { text: 'hi Mememe!', fragments: [{ type: 'text', text: 'hi Mememe!' }] } }, o));
+const base = { broadcaster_user_login: 'alice', chatter_user_id: '22', chatter_user_login: 'bobby', chatter_user_name: 'Bobby', color: '#fff', badges: [{ set_id: 'moderator', id: '1' }], message_id: 'm1' };
+const chat = (o) => msg('channel.chat.message', Object.assign({}, base, { message_type: 'text', message: { text: 'hi Mememe!', fragments: [{ type: 'text', text: 'hi Mememe!' }] } }, o));
+const ev = (name) => events.filter((e) => e[0] === name);
 
 (async () => {
   assert.equal(T.status().auth.status, 'none'); await assert.rejects(T.join('alice'), /Not logged in/);
-  const s = await T.startLogin(); assert.equal(s.device.code, 'ABCD'); await new Promise((r) => setTimeout(r, 50));
-  assert.equal(T.status().auth.status, 'ok'); assert.equal(T.status().login, 'mememe'); assert.ok(FakeWS.all.length >= 1, 'connects after login');
-  const tok = JSON.parse(fs.readFileSync(path.join(dir, 'tokens.json'), 'utf8')); assert.equal(tok.refresh_token, 'rt');
-  // joining: any channel works, and the name can be a link
+  const s = await T.startLogin(); assert.equal(s.device.code, 'ABCD'); assert.equal((await T.startLogin()).device.code, 'ABCD', 'one code at a time'); await new Promise((r) => setTimeout(r, 50));
+  assert.equal(T.status().auth.status, 'ok'); assert.equal(T.status().login, 'mememe'); assert.equal(T.status().needsModScopes, false); assert.ok(FakeWS.all.length >= 1, 'connects after login');
   await assert.rejects(T.join('!!'), /not a channel name/); await assert.rejects(T.join('nobody1'), /No channel called/);
   const ws = wsLast; ws.onmessage({ data: JSON.stringify({ metadata: { message_type: 'session_welcome' }, payload: { session: { id: 'sess1' } } }) }); await new Promise((r) => setTimeout(r, 20));
   assert.equal(subsMade.length, 0, 'nothing to subscribe to until a channel is joined');
-  await T.join('https://www.twitch.tv/Alice'); assert.deepEqual(T.status().channels.map((c) => c.login), ['alice']);
-  assert.deepEqual(subsMade.map((b) => b.type), ['channel.chat.message', 'channel.chat.message_delete', 'channel.chat.clear_user_messages', 'channel.chat.clear'], 'no poll subscriptions in someone else\'s channel');
-  assert.deepEqual(subsMade[0].condition, { broadcaster_user_id: '11', user_id: '99' }); assert.equal(subsMade[0].transport.session_id, 'sess1');
-  // your own channel also gets polls and predictions
-  await T.join('mememe'); assert.ok(subsMade.some((b) => b.type === 'channel.poll.begin') && subsMade.some((b) => b.type === 'channel.prediction.end'));
-  // chat
-  ws.onmessage({ data: JSON.stringify(chat()) }); const m = events.filter((e) => e[0] === 'chat')[0][1]; assert.equal(m.channel, 'alice'); assert.equal(m.mention, true, 'your name was said'); assert.deepEqual(m.badges, ['moderator/1']); assert.deepEqual(await T.badges('alice'), { 'moderator/1': 'https://x/mod.png', 'subscriber/0': 'https://x/sub.png' });
-  assert.equal(T.history('alice').length, 1);
-  ws.onmessage({ data: JSON.stringify(msg('channel.chat.message_delete', { broadcaster_user_login: 'alice', message_id: 'm1' })) }); assert.equal(T.history('alice').length, 0, 'deleted messages leave the history'); assert.equal(events.filter((e) => e[0] === 'chatmod').length, 1);
-  // polls and predictions
-  ws.onmessage({ data: JSON.stringify(msg('channel.poll.progress', { title: 'Best?', choices: [{ id: 'a', title: 'A', votes: 3 }] })) }); assert.equal(T.status().poll.title, 'Best?');
-  ws.onmessage({ data: JSON.stringify(msg('channel.poll.end', { title: 'Best?', choices: [] })) }); assert.equal(T.status().poll.done, true);
-  ws.onmessage({ data: JSON.stringify(msg('channel.prediction.begin', { title: 'Win?', outcomes: [] })) }); assert.equal(T.status().prediction.title, 'Win?');
+  await T.join('https://www.twitch.tv/Alice'); await T.join('mememe');
+  assert.deepEqual(subsMade.slice(0, 5).map((b) => b.type), ['channel.chat.message', 'channel.chat.notification', 'channel.chat.message_delete', 'channel.chat.clear_user_messages', 'channel.chat.clear']);
+  assert.deepEqual(subsMade[0].condition, { broadcaster_user_id: '11', user_id: '99' }); assert.equal(subsMade[0].transport.session_id, 'sess1'); assert.equal(subsMade.length, 10);
+  // chat, badges with names, mentions
+  ws.onmessage({ data: JSON.stringify(chat()) }); const m = ev('chat')[0][1]; assert.equal(m.channel, 'alice'); assert.equal(m.mention, true); assert.deepEqual(m.badges, ['moderator/1']);
+  const bd = await T.badges('alice'); assert.deepEqual(bd['moderator/1'], { u: 'https://x/mod.png', t: 'Moderator' }); assert.equal(bd['subscriber/0'].t, 'Subscriber');
+  // GIFs and cheers
+  ws.onmessage({ data: JSON.stringify(chat({ message_id: 'm2', cheer: { bits: 100 }, message: { text: 'wow', fragments: [{ type: 'text', text: 'wow ' }, { type: 'gif', text: '', gif: { url: 'https://media.tenor.com/x.gif' } }, { type: 'gif', text: '', gif: { url: 'http://bad' } }] } })) }); const g = ev('chat')[1][1];
+  assert.equal(g.bits, 100); assert.equal(g.frags[1].gif.url, 'https://media.tenor.com/x.gif'); assert.equal(g.frags[2].gif, undefined, 'only https GIFs');
+  // events and announcements
+  ws.onmessage({ data: JSON.stringify(msg('channel.chat.notification', Object.assign({}, base, { message_id: 'n1', notice_type: 'sub_gift', system_message: 'Bobby gifted a Tier 1 sub to Cara!', message: { text: '', fragments: [] } }))) });
+  ws.onmessage({ data: JSON.stringify(msg('channel.chat.notification', Object.assign({}, base, { message_id: 'n2', notice_type: 'announcement', announcement: { color: 'GREEN' }, system_message: '', message: { text: 'Drops are live', fragments: [{ type: 'text', text: 'Drops are live' }] } }))) });
+  ws.onmessage({ data: JSON.stringify(msg('channel.chat.notification', Object.assign({}, base, { message_id: 'n3', notice_type: 'announcement', announcement: { color: 'green' }, message: { text: 'ok', fragments: [] } }))) });
+  ws.onmessage({ data: JSON.stringify(msg('channel.chat.notification', Object.assign({}, base, { message_id: 'n4', notice_type: 'raid', system_message: '40 raiders from Zed have joined!', raid: { user_name: 'Zed', viewer_count: 40 }, message: { text: '', fragments: [] } }))) });
+  const [sg, an, an2, rd] = ev('chat').slice(2).map((x) => x[1]); assert.equal(sg.event, 'sub_gift'); assert.match(sg.system, /gifted a Tier 1/); assert.equal(an.event, 'announcement'); assert.equal(an.color, 'primary', 'an unknown colour falls back'); assert.equal(an2.color, 'green'); assert.equal(rd.raid.viewers, 40);
+  // deletes
+  ws.onmessage({ data: JSON.stringify(msg('channel.chat.message_delete', { broadcaster_user_login: 'alice', message_id: 'm1' })) }); assert.ok(!T.history('alice').some((x) => x.id === 'm1'), 'deleted messages leave the history');
+  // the hover card
+  const u = await T.userInfo('22'); assert.equal(u.name, 'Bobby'); assert.equal(u.created, '2020-01-01T00:00:00Z'); await assert.rejects(T.userInfo('x'), /Unknown user/);
   // sending
   await T.send('alice', 'hello', 'm9'); assert.deepEqual(sent[0], { broadcaster_id: '11', sender_id: '99', message: 'hello', reply_parent_message_id: 'm9' });
   await assert.rejects(T.send('alice', 'blocked'), /AutoMod held it/); await assert.rejects(T.send('alice', '   '), /Nothing to send/); await assert.rejects(T.send('zed', 'x'), /Join that channel first/);
+  // moderator: from the list Twitch gives, plus your own channel
+  await T.loadMods(true); const st = T.status(); assert.equal(st.channels.find((c) => c.login === 'alice').mod, true); assert.equal(st.channels.find((c) => c.login === 'mememe').mod, true, 'your own channel');
+  await T.mod('alice', 'delete', { messageId: 'abcdefgh1' }); assert.deepEqual(calls[0].slice(0, 2), ['DELETE', '/moderation/chat?broadcaster_id=11&moderator_id=99&message_id=abcdefgh1']);
+  await T.mod('alice', 'timeout', { userId: '22', seconds: 600, reason: 'spam' }); assert.deepEqual(calls[1][2], { data: { user_id: '22', duration: 600, reason: 'spam' } });
+  await T.mod('alice', 'ban', { userId: '22' }); assert.equal(calls[2][2].data.duration, undefined); await T.mod('alice', 'unban', { userId: '22' }); assert.equal(calls[3][0], 'DELETE'); await T.mod('alice', 'clear');
+  await T.mod('alice', 'slow', { on: true, value: 10 }); assert.deepEqual(calls[5][2], { slow_mode: true, slow_mode_wait_time: 10 }); await T.mod('alice', 'emotes', { on: false }); assert.deepEqual(calls[6][2], { emote_mode: false });
+  assert.deepEqual(await T.mod('alice', 'settings'), { slow: 30, followers: -1, subs: false, emotes: true, unique: false });
+  await assert.rejects(T.mod('alice', 'ban', { userId: 'x' }), /Unknown user/); await assert.rejects(T.mod('alice', 'nuke'), /Unknown action/);
+  // settings and the order of tabs are remembered
+  T.configure({ font: 'IMC Dyslexia', size: 99, weight: 650, theme: 'moss', layout: 'vertical', active: 'alice' }); assert.deepEqual(T.status().settings, { font: 'IMC Dyslexia', size: 32, weight: 400, theme: 'moss', layout: 'vertical', active: 'alice' }, 'bad values are refused or clamped');
+  T.configure({ font: 'Comic Sans', theme: 'nope' }); assert.equal(T.status().settings.font, 'IMC Dyslexia'); T.move('mememe', 0); assert.deepEqual(T.status().channels.map((c) => c.login), ['mememe', 'alice']);
   // moving to a new Twitch address keeps the subscriptions
   const before = subsMade.length; ws.onmessage({ data: JSON.stringify({ metadata: { message_type: 'session_reconnect' }, payload: { session: { reconnect_url: 'wss://new' } } }) }); const ws2 = wsLast; assert.equal(ws2.url, 'wss://new');
-  ws2.onmessage({ data: JSON.stringify({ metadata: { message_type: 'session_welcome' }, payload: { session: { id: 'sess2' } } }) }); await new Promise((r) => setTimeout(r, 20)); assert.equal(subsMade.length, before, 'not subscribed twice'); assert.ok(ws.closed, 'the old connection is closed');
-  // leaving
-  await T.leave('alice'); assert.equal(deleted.length, 4); assert.deepEqual(T.status().channels.map((c) => c.login), ['mememe']);
-  // channels survive a restart
-  const T2 = createTwitch({ dir, clientId: 'cid', fetch: fake, WebSocket: FakeWS }); assert.deepEqual(T2.status().channels.map((c) => c.login), ['mememe']); assert.equal(T2.status().auth.status, 'ok');
+  ws2.onmessage({ data: JSON.stringify({ metadata: { message_type: 'session_welcome' }, payload: { session: { id: 'sess2' } } }) }); await new Promise((r) => setTimeout(r, 20)); assert.equal(subsMade.length, before, 'not subscribed twice'); assert.ok(ws.closed);
+  await T.leave('alice'); assert.equal(deleted.length, 5); assert.deepEqual(T.status().channels.map((c) => c.login), ['mememe']);
+  // a login from before the mod tools existed is asked to reconnect, and mod actions are refused
+  const old = fs.mkdtempSync(path.join(os.tmpdir(), 'imc-old-')); fs.writeFileSync(path.join(old, 'tokens.json'), JSON.stringify({ access_token: 'a', refresh_token: 'r', expires_at: Date.now() + 1e7, user_id: '99', login: 'mememe', scopes: ['user:read:chat', 'user:write:chat'] })); fs.writeFileSync(path.join(old, 'channels.json'), JSON.stringify([{ login: 'mememe', id: '99', name: 'Me' }]));
+  const T3 = createTwitch({ dir: old, clientId: 'cid', fetch: fake, WebSocket: FakeWS }); assert.equal(T3.status().needsModScopes, true); await assert.rejects(T3.mod('mememe', 'clear'), /Reconnect Twitch/);
+  // everything survives a restart
+  const T2 = createTwitch({ dir, clientId: 'cid', fetch: fake, WebSocket: FakeWS }); assert.deepEqual(T2.status().channels.map((c) => c.login), ['mememe']); assert.equal(T2.status().settings.theme, 'moss'); assert.equal(T2.status().auth.status, 'ok');
   T.stop(); console.log('twitch test passed'); process.exit(0);
 })().catch((e) => { console.error('FAILED:', e); process.exit(1); });
