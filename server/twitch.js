@@ -11,7 +11,7 @@ const MOD_SCOPES = ['user:read:moderated_channels', 'moderator:manage:banned_use
 const EMOTE_SCOPE = 'user:read:emotes';
 const SCOPES = CHAT_SCOPES.concat(MOD_SCOPES, [EMOTE_SCOPE]);
 const NOTICE_COLORS = ['primary', 'blue', 'green', 'orange', 'purple'];
-const DEFAULT_SETTINGS = { font: 'IMC Sans', size: 16, weight: 400, theme: 'forge', layout: 'horizontal', active: '', showTime: true, altRows: false, mentionSound: true, mentionVolume: 60, mentionFlash: true, highlightWords: [], mutedUsers: [], mutedWords: [], mutedAlerts: [] };
+const DEFAULT_SETTINGS = { font: 'IMC Sans', size: 16, weight: 400, theme: 'forge', layout: 'horizontal', active: '', showTime: true, altRows: false, compact: true, mentionSound: true, mentionVolume: 60, mentionFlash: true, highlightWords: [], mutedUsers: [], mutedWords: [], mutedAlerts: [] };
 const FONTS = ['IMC Sans', 'IMC Serif', 'IMC Dyslexia', 'system'], THEMES = ['forge', 'midnight', 'ember', 'dusk', 'slate', 'moss', 'cream', 'paper', 'sky'];
 
 module.exports = function createTwitch(ctx) {
@@ -46,6 +46,7 @@ module.exports = function createTwitch(ctx) {
     if (b.layout === 'vertical' || b.layout === 'horizontal') settings.layout = b.layout;
     if (typeof b.showTime === 'boolean') settings.showTime = b.showTime;
     if (typeof b.altRows === 'boolean') settings.altRows = b.altRows;
+    if (typeof b.compact === 'boolean') settings.compact = b.compact;
     if (typeof b.mentionSound === 'boolean') settings.mentionSound = b.mentionSound;
     if (typeof b.mentionFlash === 'boolean') settings.mentionFlash = b.mentionFlash;
     if (Number.isFinite(Number(b.mentionVolume))) settings.mentionVolume = Math.min(100, Math.max(0, Math.round(Number(b.mentionVolume))));
