@@ -28,6 +28,7 @@
       "main.js",
       "preload.js",
       "vlcwindow.js",
+      "hls-ads.js",
       "player-preload.js",
       "supervisor.js",
       "package.json",
