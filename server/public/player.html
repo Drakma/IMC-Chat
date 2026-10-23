@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IMC-Chat player</title>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<style>
+  :root { --bg:#000; --panel:#1A2020; --text:#E2DAC2; --muted:#9aa39f; --accent:#4FBBBC; --accent2:#F39120; --danger:#EC4624; --line:#2f3938; --on:#1A2020; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; overflow: hidden; } body { background: var(--bg); color: var(--text); font-family: "IMC Sans","Segoe UI",sans-serif; display: flex; flex-direction: column; user-select: none; }
+  #stage { flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; color: var(--muted); letter-spacing: 2px; }
+  #stage b { display: block; color: var(--text); font-size: 1.2em; margin-bottom: 10px; letter-spacing: 4px; } #stage button { margin-top: 16px; }
+  #bar { flex: none; height: 64px; background: var(--panel); border-top: 3px solid var(--accent); display: flex; align-items: center; gap: 8px; padding: 0 12px; position: relative; }
+  body.hide #bar { display: none; }
+  #bar::before { content: ""; position: absolute; left: 0; right: 0; top: -3px; height: 3px; background: linear-gradient(90deg,var(--accent) 0 30%,var(--accent2) 30% 55%,var(--danger) 55% 75%,var(--accent2) 75% 90%,var(--text) 90%); }
+  button { font: inherit; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; font-size: 12px; height: 36px; min-width: 36px; padding: 0 12px; border: 0; cursor: pointer; background: transparent; color: var(--text); display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+  button:hover { background: #ffffff22; } button.on { color: var(--accent2); } button.go { background: var(--accent2); color: var(--on); } svg { width: 20px; height: 20px; fill: currentColor; }
+  #name { font-weight: 800; letter-spacing: 2px; margin: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } #state { color: var(--muted); font-size: 12px; letter-spacing: 1px; margin-right: auto; white-space: nowrap; }
+  input[type=range] { width: 110px; accent-color: var(--accent); } select { font: inherit; font-size: 12px; height: 36px; background: #222A2A; color: var(--text); border: 2px solid var(--line); padding: 0 8px; }
+  .sp { flex: 1; }
+</style></head>
+<body>
+<div id="stage"><div><b id="stTitle">STARTING</b><span id="stMsg">Opening the stream...</span><br><button class="go" id="retry" style="display:none">Try again</button></div></div>
+<div id="bar">
+  <button id="pp" title="Play / pause (Space)"><svg id="ppI" viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg></button>
+  <button id="mute" title="Mute (M)"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 4V5L7 9zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.500 4.500 0 0 0 2.500-4z"/></svg></button>
+  <input type="range" id="vol" min="0" max="100" step="1" title="Volume">
+  <span id="name"></span><span id="state"></span>
+  <select id="quality" title="Quality" style="display:none"></select>
+  <button id="chat" title="Open the chat"><svg viewBox="0 0 24 24"><path d="M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H8l-4 4V5a1 1 0 0 1 1-1z"/></svg></button>
+  <button id="top" title="Keep on top"><svg viewBox="0 0 24 24"><path d="M16 3v2l-1 1v5l2 3v2h-4v5l-1 1-1-1v-5H7v-2l2-3V6L8 5V3z"/></svg></button>
+  <button id="full" title="Fullscreen (F)"><svg viewBox="0 0 24 24"><path d="M5 5h5v2H7v3H5zm9 0h5v5h-2V7h-3zM5 14h2v3h3v2H5zm12 0h2v5h-5v-2h3z"/></svg></button>
+  <button id="close" title="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" fill="none"/></svg></button>
+</div>
+<script>
+const $ = (id) => document.getElementById(id), P = window.imcPlayer; let channel = '', last = {}, prevVol = 60, userVol = 0;
+const PAUSE = 'M6 5h4v14H6zm8 0h4v14h-4z', PLAY = 'M8 5v14l11-7z';
+const send = (a, x) => (P ? P.cmd(Object.assign({ a }, x || {})) : null);
+$('pp').onclick = () => send('pause'); $('chat').onclick = () => send('chat'); $('top').onclick = () => send('top'); $('full').onclick = () => send('full'); $('close').onclick = () => send('close'); $('retry').onclick = () => send('retry');
+$('vol').oninput = (e) => { userVol = Date.now(); send('volume', { v: Number(e.target.value) }); };
+$('mute').onclick = () => { const v = Number($('vol').value); if (v > 0) { prevVol = v; $('vol').value = 0; send('volume', { v: 0 }); } else { $('vol').value = prevVol; send('volume', { v: prevVol }); } userVol = Date.now(); };
+$('quality').onchange = (e) => send('quality', { q: e.target.value });
+document.addEventListener('keydown', (e) => { if (e.code === 'Space') { e.preventDefault(); send('pause'); } else if (e.key.toLowerCase() === 'f') send('full'); else if (e.key.toLowerCase() === 'm') $('mute').click(); else if (e.key === 'Escape') { if (last.full) send('full'); } });
+const NAMES = { starting: 'Starting', playing: 'Live', paused: 'Paused', stopped: 'Stopped', ended: 'Ended' };
+if (P) P.on((d) => {
+  if (d.type === 'init') { channel = d.channel; $('name').textContent = '#' + channel; }
+  else if (d.type === 'bar') document.body.classList.toggle('hide', !d.show);
+  else if (d.type === 'state') {
+    last = Object.assign(last, d); $('state').textContent = d.ended ? '' : NAMES[d.state] || ''; $('ppI').innerHTML = '<path d="' + (d.state === 'playing' ? PAUSE : PLAY) + '"/>';
+    $('top').classList.toggle('on', !!d.top); $('full').classList.toggle('on', !!d.full); $('mute').classList.toggle('on', d.volume === 0);
+    if (Date.now() - userVol > 1200 && document.activeElement !== $('vol')) $('vol').value = d.volume;
+    const qs = d.qualities || [], sel = $('quality'); sel.style.display = qs.length ? '' : 'none'; if (qs.length && sel.options.length !== qs.length) sel.innerHTML = qs.map((q) => '<option value="' + q + '">' + (q === 'best' ? 'Auto (best)' : q === 'audio_only' ? 'Audio only' : q) + '</option>').join(''); if (qs.length) sel.value = d.quality;
+    $('stTitle').textContent = d.ended ? (d.ended.toUpperCase()) : 'STARTING'; $('stMsg').textContent = d.ended ? '' : 'Opening the stream...'; $('retry').style.display = d.ended ? '' : 'none';
+  }
+});
+</script></body></html>

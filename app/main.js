@@ -3,6 +3,7 @@
 const { app, BrowserWindow, Tray, Menu, nativeImage, shell, ipcMain } = require('electron');
 const fs = require('node:fs'), path = require('node:path');
 const createSupervisor = require('./supervisor.js');
+const createVlcWindows = require('./vlcwindow.js');
 
 const PACKED = app.isPackaged, RES = PACKED ? process.resourcesPath : path.join(__dirname, '..'), SERVER_DIR = path.join(RES, 'server'), BUILD = path.join(__dirname, 'build');
 const PORT = 8430, userData = app.getPath('userData'), DATA = path.join(userData, 'data'), SETTINGS_FILE = path.join(userData, 'settings.json');
@@ -58,6 +59,13 @@ app.on('web-contents-created', (e, wc) => {
   });
   wc.on('will-navigate', (ev, u) => { if (!u.startsWith(url()) && !u.startsWith('data:')) { ev.preventDefault(); if (/^https?:\/\//.test(u)) shell.openExternal(u); } });
 });
+// the player window: VLC drawn inside our own resizable window, with our own controls
+let vlcWindows = null;
+function chatPopout(login) { const w = new BrowserWindow({ width: 480, height: 760, minWidth: 360, minHeight: 360, autoHideMenuBar: true, backgroundColor: '#222A2A', icon: icon('icon.png') }); w.loadURL(url() + '?popout=' + encodeURIComponent(login)); }
+ipcMain.handle('player:watch', async (e, login, opt) => {
+  vlcWindows = vlcWindows || createVlcWindows({ url, icon: icon('icon.png'), preload: path.join(__dirname, 'player-preload.js'), log, openChat: chatPopout, locate: require(path.join(SERVER_DIR, 'player.js'))({}).locate });
+  try { return await vlcWindows.watch(login, opt && { playerPath: String(opt.playerPath || ''), quality: 'best' }); } catch (err) { return { error: err.message }; }
+});
 ipcMain.on('flash', () => { if (win && !win.isFocused()) win.flashFrame(true); });   // a mention while the window is in the background: the taskbar button flashes
 app.on('second-instance', openWindow);
 app.whenReady().then(() => {
@@ -65,4 +73,4 @@ app.whenReady().then(() => {
   if (!process.argv.includes('--hidden')) openWindow();
 });
 app.on('window-all-closed', () => { /* stay in the tray */ });
-app.on('before-quit', () => { quitting = true; if (sup) sup.stop(); });
+app.on('before-quit', () => { quitting = true; if (vlcWindows) vlcWindows.closeAll(); if (sup) sup.stop(); });

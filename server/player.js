@@ -37,6 +37,8 @@ module.exports = function createPlayer(ctx) {
   // installing with Windows' own package manager, when you press the button
   const winget = () => onPath('winget.exe') || (env.LOCALAPPDATA ? first([path.join(env.LOCALAPPDATA, 'Microsoft', 'WindowsApps', 'winget.exe')]) : '');
   let installing = '', installError = '';
+  /** where things are, for the window that plays VLC inside our own window */
+  const locate = (chosen, pref) => ({ streamlink: streamlink(), player: playerFor(chosen, pref) });
   const info = (chosen, pref) => { const p = playerFor(chosen, pref); return { streamlink: !!streamlink(), player: p ? p.name : '', kind: p ? p.kind : '', mpv: !!mpv(), vlc: !!vlc(), winget: !!winget(), installing, installError }; };
   function install(what) {
     what = what || 'streamlink'; if (!WINGET_IDS[what]) return Promise.reject(new Error('Unknown program'));
@@ -56,7 +58,7 @@ module.exports = function createPlayer(ctx) {
     opt = opt || {}; const login = String(channel || '').toLowerCase(); if (!/^[a-z0-9_]{3,25}$/.test(login)) return Promise.reject(new Error('Unknown channel'));
     const sl = streamlink(); if (!sl) return Promise.reject(new Error('Streamlink is not installed. Press Install Streamlink in Settings, or run: winget install Streamlink.Streamlink'));
     const pl = playerFor(chosen, opt.pref); if (!pl) return Promise.reject(new Error('No video player found. Install VLC (videolan.org) or mpv, or choose a player in Settings.'));
-    const styled = opt.style !== 'normal' && STYLE_ARGS[pl.kind];
+    const style = opt.style || 'chromeless', styled = (style === 'chromeless' || (style === 'own' && pl.kind === 'mpv')) && STYLE_ARGS[pl.kind];   // 'own' is the window IMC-Chat draws itself (VLC only); here it means VLC's normal window, or mpv without a frame
     return new Promise((resolve, reject) => {
       let out = '', done = false, c; const finish = (fn, v) => { if (!done) { done = true; clearTimeout(t); fn(v); } };
       const args = ['--player', pl.path].concat(styled ? ['--player-args=' + STYLE_ARGS[pl.kind]] : [],   // one argument with an equals sign: a value starting with dashes is not mistaken for an option
@@ -68,5 +70,5 @@ module.exports = function createPlayer(ctx) {
       const t = setTimeout(() => { try { if (c.unref) c.unref(); } catch (e) { /* gone */ } finish(resolve, { ok: true, player: pl.name, chromeless: !!styled }); }, ctx.waitMs || 6000);
     });
   }
-  return { play, info, install, styleArgs: STYLE_ARGS };
+  return { play, info, install, locate, styleArgs: STYLE_ARGS };
 };

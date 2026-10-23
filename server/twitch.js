@@ -11,7 +11,7 @@ const MOD_SCOPES = ['user:read:moderated_channels', 'moderator:manage:banned_use
 const EMOTE_SCOPE = 'user:read:emotes';
 const SCOPES = CHAT_SCOPES.concat(MOD_SCOPES, [EMOTE_SCOPE]);
 const NOTICE_COLORS = ['primary', 'blue', 'green', 'orange', 'purple'];
-const DEFAULT_SETTINGS = { font: 'IMC Sans', size: 16, weight: 400, theme: 'forge', layout: 'horizontal', active: '', showTime: true, altRows: false, compact: true, mentionSound: true, mentionVolume: 60, mentionFlash: true, highlightWords: [], mutedUsers: [], mutedWords: [], mutedAlerts: [], recentHistory: false, favEmotes: [], emoteUse: {}, playerPath: '', playerPref: '', playerStyle: 'chromeless', railWidth: 0 };
+const DEFAULT_SETTINGS = { font: 'IMC Sans', size: 16, weight: 400, theme: 'forge', layout: 'horizontal', active: '', showTime: true, altRows: false, compact: true, mentionSound: true, mentionVolume: 60, mentionFlash: true, highlightWords: [], mutedUsers: [], mutedWords: [], mutedAlerts: [], recentHistory: false, favEmotes: [], emoteUse: {}, playerPath: '', playerPref: '', playerStyle: 'own', railWidth: 0 };
 const FONTS = ['IMC Sans', 'IMC Serif', 'IMC Dyslexia', 'system'], THEMES = ['forge', 'midnight', 'ember', 'dusk', 'slate', 'moss', 'cream', 'paper', 'sky'];
 
 /** one chat line as the recent-messages service keeps it (IRC), turned into the same message the live chat makes */
@@ -39,6 +39,7 @@ module.exports = function createTwitch(ctx) {
   const read = (f, d) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return d; } };
   const write = (f, v) => { try { fs.mkdirSync(ctx.dir, { recursive: true }); fs.writeFileSync(f, JSON.stringify(v, null, 2)); } catch (e) { log('could not save', path.basename(f), e.message); } };
   let tokens = read(TOK, null), channels = read(CH, []), settings = Object.assign({}, DEFAULT_SETTINGS, read(SET, {})), device = null, auth = { status: tokens ? 'ok' : 'none', message: tokens ? 'Logged in as ' + tokens.login : 'Not connected' };
+  if (!settings.styleChosen && settings.playerStyle === 'chromeless') settings.playerStyle = 'own';   // a window style that was only ever the old default moves to the new default
   let ws = null, session = '', subs = new Map(), ready = false, ka = null, closed = false, mods = new Set(), modsAt = 0;   // subs: "type|channelId" -> subscription id
   const liveMap = new Map(), backfilled = new Set(), emoteCache = new Map(), history = new Map(), badgeCache = new Map(), userCache = new Map();   // badgeCache: 'global' or a channel id -> { 'set/version': { u: image, t: title } }
 
@@ -67,7 +68,7 @@ module.exports = function createTwitch(ctx) {
     if (typeof b.compact === 'boolean') settings.compact = b.compact;
     if (typeof b.playerPath === 'string') { const pp = b.playerPath.trim().slice(0, 260); if (pp === '' || /\.exe$/i.test(pp)) settings.playerPath = pp; }   // a program, or empty for automatic
     if (['', 'vlc', 'mpv'].includes(b.playerPref)) settings.playerPref = b.playerPref;
-    if (['chromeless', 'normal'].includes(b.playerStyle)) settings.playerStyle = b.playerStyle;
+    if (['own', 'chromeless', 'normal'].includes(b.playerStyle)) { settings.playerStyle = b.playerStyle; settings.styleChosen = true; }
     if (b.railWidth !== undefined && Number.isFinite(Number(b.railWidth))) { const w = Math.round(Number(b.railWidth)); settings.railWidth = w <= 0 ? 0 : Math.min(520, Math.max(120, w)); }   // the width of the channel list on the left; 0 = automatic
     const turnedOn = typeof b.recentHistory === 'boolean' && b.recentHistory && !settings.recentHistory;
     if (typeof b.recentHistory === 'boolean') settings.recentHistory = b.recentHistory;

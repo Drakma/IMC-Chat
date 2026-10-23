@@ -27,6 +27,8 @@
     "files": [
       "main.js",
       "preload.js",
+      "vlcwindow.js",
+      "player-preload.js",
       "supervisor.js",
       "package.json",
       "build/*.png"

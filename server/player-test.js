@@ -17,6 +17,7 @@ const mk = (extra) => createPlayer(Object.assign({ spawn: fake, exists: (f) => h
   const c = calls[0]; assert.equal(c.cmd, 'C:\\Program Files\\Streamlink\\bin\\streamlink.exe'); assert.deepEqual(c.args.slice(0, 2), ['--player', 'C:\\Program Files\\VideoLAN\\VLC\\vlc.exe']); assert.equal(c.args[c.args.length - 2], 'https://www.twitch.tv/taylien'); assert.equal(c.args[c.args.length - 1], 'best'); assert.equal(c.opt.shell, false, 'no shell: the channel name can not run anything');
   const pa = c.args.find((x) => x.startsWith('--player-args=')); assert.match(pa, /--no-video-deco/); assert.match(pa, /--video-on-top/); assert.match(pa, /--intf dummy/);
   await P.play('taylien', '', { style: 'normal' }); assert.ok(!calls[calls.length - 1].args.some((x) => x.startsWith('--player-args')), 'a normal window gets no extra options');
+  assert.ok(!(await P.play('taylien', '', { style: 'own' }), calls[calls.length - 1].args.some((x) => x.startsWith('--player-args'))), 'the own window falls back to a normal VLC window here');
   const rm = await P.play('taylien', '', { pref: 'mpv' }); assert.equal(rm.player, 'mpv'); assert.match(calls[calls.length - 1].args.find((x) => x.startsWith('--player-args=')), /--no-border[\s\S]*--osc=yes/, 'mpv keeps its hover controls');
   calls.length = 0;
   await assert.rejects(P.play('bad name; calc', ''), /Unknown channel/); await assert.rejects(P.play('ab', ''), /Unknown channel/);
@@ -25,6 +26,7 @@ const mk = (extra) => createPlayer(Object.assign({ spawn: fake, exists: (f) => h
   mode = 'offline'; await assert.rejects(mk().play('taylien', ''), /The stream is offline/);
   mode = 'run'; await assert.rejects(createPlayer({ spawn: fake, exists: () => false, env: { PATH: '' } }).play('taylien', ''), /Streamlink is not installed/);
   const noPlayer = new Set(['C:\\Program Files\\Streamlink\\bin\\streamlink.exe']); await assert.rejects(mk({ exists: (f) => noPlayer.has(f) }).play('taylien', ''), /No video player found/);
+  assert.deepEqual(Object.keys(P.locate('', '')), ['streamlink', 'player']); assert.equal(P.locate('', '').player.kind, 'vlc'); assert.equal(P.locate('', 'mpv').player.kind, 'mpv');
   // the install button: winget runs once, and the result shows up in info()
   const inst = new Set(['C:\\Users\\me\\AppData\\Local\\Microsoft\\WindowsApps\\winget.exe']); let ran = null, child = null; const env2 = { PATH: '', LOCALAPPDATA: 'C:\\Users\\me\\AppData\\Local', ProgramFiles: 'C:\\Program Files' };
   const have2 = new Set(inst); const I = createPlayer({ spawn: (cmd, args) => { ran = { cmd, args }; child = new EventEmitter(); child.stdout = new PassThrough(); child.stderr = new PassThrough(); return child; }, exists: (f) => have2.has(f), env: env2 });

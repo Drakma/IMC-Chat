@@ -128,7 +128,7 @@
   <div class="sec"><h3>VIDEO PLAYER</h3><div class="muted">Watch a channel in VLC or mpv instead of the built-in player (right-click a tab, or the button in a popout). It uses Streamlink to fetch the stream: install it once with <b>winget install Streamlink.Streamlink</b>.</div><div class="muted" id="plInfo"></div>
     <div id="plInstall" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button id="plInstallBtn" style="display:none">Install Streamlink</button><a id="plDl" class="muted" style="display:none" href="https://streamlink.github.io/install.html#windows" target="_blank" rel="noopener">or download it yourself</a><button id="plInstallMpv" class="ghost" style="display:none">Install mpv (hover controls)</button></div>
     <div class="row2" style="grid-template-columns:90px 1fr"><label>Player</label><select id="playerPref"><option value="">Automatic (VLC, then mpv)</option><option value="vlc">VLC</option><option value="mpv">mpv</option></select></div>
-    <div class="row2" style="grid-template-columns:90px 1fr"><label>Window</label><select id="playerStyle"><option value="chromeless">Chromeless: no window frame, always on top</option><option value="normal">A normal player window</option></select></div>
+    <div class="row2" style="grid-template-columns:90px 1fr"><label>Window</label><select id="playerStyle"><option value="own">Our own window: resizable, with hover controls (VLC)</option><option value="chromeless">Chromeless: no window frame, always on top</option><option value="normal">VLC / mpv own window</option></select></div>
     <div class="muted" id="plStyleNote"></div>
     <input id="playerPath" placeholder="Or a player program of your own (leave empty for automatic)" autocomplete="off" spellcheck="false" style="width:100%"></div>
   <div class="sec"><h3>BACKUP</h3><div class="muted">Your channels and settings in one file (never your login). Use it to move to another PC or after a reinstall.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><a href="/api/export" download="imc-chat-backup.json"><button type="button" class="ghost">Export</button></a><button type="button" class="ghost" id="importBtn">Import</button><input type="file" id="importFile" accept=".json,application/json" style="display:none"></div></div>
@@ -185,7 +185,7 @@ function drawSettings() {
   setList('hlWords', s.highlightWords); setList('muUsers', s.mutedUsers); setList('muWords', s.mutedWords);
   $('alertList').innerHTML = S.channels.length ? S.channels.map((c) => '<label class="tgl"><input type="checkbox" data-alert="' + esc(c.login) + '"' + ((s.mutedAlerts || []).includes(c.login) ? '' : ' checked') + '> Alerts for ' + esc(c.name) + '</label>').join('') : '<span class="muted">Join a channel first.</span>';
   $('appNote').textContent = S.customClient ? 'Using your own Twitch app (' + S.clientId + ').' : 'Using the shared IMC-Chat app. That works fine; your own app is only needed if you want the login screen and limits to be yours alone.';
-  $('acct').textContent = 'Logged in as ' + S.login + '. Your channels and settings stay on this PC.'; $('recentHistory').checked = !!s.recentHistory; if (document.activeElement !== $('playerPath')) $('playerPath').value = s.playerPath || ''; $('playerPref').value = s.playerPref || ''; $('playerStyle').value = s.playerStyle || 'chromeless'; $('compact').checked = s.compact !== false; $('showTime').checked = s.showTime !== false; $('altRows').checked = !!s.altRows;
+  $('acct').textContent = 'Logged in as ' + S.login + '. Your channels and settings stay on this PC.'; $('recentHistory').checked = !!s.recentHistory; if (document.activeElement !== $('playerPath')) $('playerPath').value = s.playerPath || ''; $('playerPref').value = s.playerPref || ''; $('playerStyle').value = s.playerStyle || 'own'; $('compact').checked = s.compact !== false; $('showTime').checked = s.showTime !== false; $('altRows').checked = !!s.altRows;
   document.querySelectorAll('.layouts .opt').forEach((o) => o.classList.toggle('on', o.dataset.l === s.layout));
 }
 let saveT = null; function save(b) { Object.assign(S.settings, b); applySettings(S.settings); clearTimeout(saveT); saveT = setTimeout(() => post('settings', S.settings), 250); }
@@ -212,19 +212,22 @@ function drawPop() {
   if ($('player').dataset.src !== want) { $('player').dataset.src = want; $('player').innerHTML = want ? '<iframe src="' + esc(want) + '" allowfullscreen allow="autoplay; fullscreen"></iframe>' : ''; }
 }
 $('popVideo').onclick = () => { watching = !watching; drawPop(); };
-let playerName = '';
+let playerName = '', playerKind = '';
 async function playerInfo() {
-  const i = await post('playerinfo').catch(() => ({})); playerName = i.player || '';
+  const i = await post('playerinfo').catch(() => ({})); playerName = i.player || ''; playerKind = i.kind || '';
   const el = $('plInfo'); if (el) el.textContent = i.installing ? 'Installing ' + (i.installing === 'mpv' ? 'mpv' : 'Streamlink') + '... Windows may ask for permission; this can take a minute.' : 'Streamlink: ' + (i.streamlink ? 'found' : 'not found') + '. Player: ' + (i.player || 'none found') + (i.mpv ? ' (mpv is installed)' : '') + '.' + (i.installError ? ' Install failed: ' + i.installError : '');
   const sb = $('plInstallBtn'), mb = $('plInstallMpv'); if (sb) {
     sb.style.display = i.streamlink ? 'none' : ''; $('plDl').style.display = i.streamlink ? 'none' : ''; sb.disabled = !!i.installing; sb.textContent = i.installing === 'streamlink' ? 'Installing...' : 'Install Streamlink';
     mb.style.display = i.mpv ? 'none' : ''; mb.disabled = !!i.installing; mb.textContent = i.installing === 'mpv' ? 'Installing...' : 'Install mpv (hover controls)';
-    $('plStyleNote').textContent = (cfgs().playerStyle || 'chromeless') === 'normal' ? '' : (i.kind === 'mpv' ? 'mpv opens without its frame; move the mouse over the video for its controls, drag to move the window.' : i.kind === 'vlc' ? 'VLC opens without its frame and without its interface (VLC only shows on-video controls in fullscreen). Space pauses, M mutes, the mouse wheel sets the volume, double-click is fullscreen, Esc closes fullscreen. For hover controls choose mpv.' : '');
+    $('plStyleNote').textContent = (cfgs().playerStyle || 'own') === 'normal' ? '' : (cfgs().playerStyle || 'own') === 'own' && i.kind === 'vlc' ? 'VLC plays inside IMC-Chat\'s own window: resize it freely, move the mouse over it for the controls (they hide after a few seconds).' : (i.kind === 'mpv' ? 'mpv opens without its frame; move the mouse over the video for its controls, drag to move the window.' : i.kind === 'vlc' ? 'VLC opens without its frame and without its interface (VLC only shows on-video controls in fullscreen). Space pauses, M mutes, the mouse wheel sets the volume, double-click is fullscreen, Esc closes fullscreen. For hover controls choose mpv.' : '');
   }
   if (i.installing && !playerInfo.poll) playerInfo.poll = setTimeout(() => { playerInfo.poll = null; playerInfo(); }, 3000);
   const b = $('popPlayer'); if (b) b.textContent = 'Open in ' + (playerName || 'player'); if (S && !POP) drawTabs(); return i;
 }
-async function playIn(login) { toast('Starting ' + (playerName || 'the player') + '...', true); const r = await post('play', { channel: login }).catch(() => ({ error: 'Could not reach the app' })); if (r.error) toast(r.error); else toast('Opened in ' + r.player, true); }
+async function playIn(login) {
+  const st = cfgs().playerStyle || 'own';
+  if (st === 'own' && playerKind === 'vlc' && window.imcWindow && window.imcWindow.watch) { const r = await window.imcWindow.watch(login, { playerPath: cfgs().playerPath || '' }).catch((x) => ({ error: String(x.message || x) })); if (r && r.error) toast(r.error); return; }   // the app's own player window
+  toast('Starting ' + (playerName || 'the player') + '...', true); const r = await post('play', { channel: login }).catch(() => ({ error: 'Could not reach the app' })); if (r.error) toast(r.error); else toast('Opened in ' + r.player, true); }
 $('popPlayer').onclick = () => playIn(POP);
 $('plInstallBtn').onclick = async () => { const r = await post('streamlink', { what: 'streamlink' }).catch(() => ({ error: 'Could not reach the app' })); if (r.error) toast(r.error); await playerInfo(); };
 $('plInstallMpv').onclick = async () => { const r = await post('streamlink', { what: 'mpv' }).catch(() => ({ error: 'Could not reach the app' })); if (r.error) toast(r.error); await playerInfo(); };
