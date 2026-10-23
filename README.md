@@ -32,9 +32,6 @@ For the video player you will also want **VLC** (and, for Twitch's own player, n
 - **Moderator tools:** in channels where you are a mod (and your own) the tab gets a sword. Hover a message to delete, timeout 10 minutes or ban; the name card has 1m/10m/1h/1d, ban and unban; the bar above the message box switches slow, followers, subs-only, emote-only and unique chat on and off, and clears the chat. Reconnect Twitch once after updating to grant the permissions.
 - Twitch gives viewers no way to vote in polls or predictions from outside twitch.tv, and only a channel's owner can follow them, so IMC-Chat does not show them.
 
-## Your own Twitch app (optional)
-IMC-Chat ships with its own Twitch app (its Client ID is public, not a secret), so Twitch's approval screen says "IMC-Chat". To use an app of your own instead: on dev.twitch.tv/console choose *Register Your Application* (any name, OAuth redirect URL `http://localhost`, category Chat Integration (or whichever fits best: it is only a label), client type **Public**), copy its Client ID into Settings, *Twitch app (advanced)*, and log in again.
-
 ## Fonts
 `_build/make_fonts.py` draws the three typefaces from stroke skeletons: nine weights each, upright and italic, with the Latin accents. Run it to rebuild `server/public/fonts/`.
 
