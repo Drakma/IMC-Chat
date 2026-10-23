@@ -64,7 +64,7 @@ let vlcWindows = null;
 function chatPopout(login) { const w = new BrowserWindow({ width: 480, height: 760, minWidth: 360, minHeight: 360, autoHideMenuBar: true, backgroundColor: '#222A2A', icon: icon('icon.png') }); w.loadURL(url() + '?popout=' + encodeURIComponent(login)); }
 ipcMain.handle('player:watch', async (e, login, opt) => {
   vlcWindows = vlcWindows || createVlcWindows({ url, icon: icon('icon.png'), preload: path.join(__dirname, 'player-preload.js'), log, openChat: chatPopout, locate: require(path.join(SERVER_DIR, 'player.js'))({}).locate });
-  try { return await vlcWindows.watch(login, opt && { playerPath: String(opt.playerPath || ''), quality: 'best' }); } catch (err) { return { error: err.message }; }
+  try { return await vlcWindows.watch(login, opt && { playerPath: String(opt.playerPath || ''), quality: 'best', ads: opt.ads === 'show' ? 'show' : 'skip' }); } catch (err) { return { error: err.message }; }
 });
 ipcMain.on('flash', () => { if (win && !win.isFocused()) win.flashFrame(true); });   // a mention while the window is in the background: the taskbar button flashes
 app.on('second-instance', openWindow);

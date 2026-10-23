@@ -44,7 +44,7 @@ if (P) P.on((d) => {
     last = Object.assign(last, d); $('state').textContent = d.ended ? '' : NAMES[d.state] || ''; $('ppI').innerHTML = '<path d="' + (d.state === 'playing' ? PAUSE : PLAY) + '"/>';
     $('top').classList.toggle('on', !!d.top); $('full').classList.toggle('on', !!d.full); $('mute').classList.toggle('on', d.volume === 0);
     if (Date.now() - userVol > 1200 && document.activeElement !== $('vol')) $('vol').value = d.volume;
-    const qs = d.qualities || []; $('quality').style.display = qs.length > 1 ? '' : 'none'; label(d.quality); $('state').textContent = d.ended ? '' : d.ad > 0 ? 'Ad break ' + d.ad + 's' : NAMES[d.state] || ''; $('state').style.color = d.ad > 0 ? 'var(--accent2)' : ''; $('cc').style.display = d.cc > 0 ? '' : 'none'; $('cc').classList.toggle('on', d.ccOn > 0); $('cc').textContent = d.ccOn > 0 ? 'CC ' + d.ccOn : 'CC';
+    const qs = d.qualities || []; $('quality').style.display = qs.length > 1 ? '' : 'none'; label(d.quality); $('state').textContent = d.ended ? '' : d.ad > 0 ? (d.adMuted ? 'Ad (muted) ' : 'Ad break ') + d.ad + 's' : NAMES[d.state] || ''; $('state').style.color = d.ad > 0 ? 'var(--accent2)' : ''; $('cc').style.display = d.cc > 0 ? '' : 'none'; $('cc').classList.toggle('on', d.ccOn > 0); $('cc').textContent = d.ccOn > 0 ? 'CC ' + d.ccOn : 'CC';
   }
 });
 </script></body></html>

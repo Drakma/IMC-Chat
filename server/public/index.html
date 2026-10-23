@@ -129,6 +129,7 @@
     <div id="plInstall" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button id="plInstallBtn" style="display:none">Install Streamlink</button><a id="plDl" class="muted" style="display:none" href="https://streamlink.github.io/install.html#windows" target="_blank" rel="noopener">or download it yourself</a><button id="plInstallMpv" class="ghost" style="display:none">Install mpv (hover controls)</button></div>
     <div class="row2" style="grid-template-columns:90px 1fr"><label>Player</label><select id="playerPref"><option value="">Automatic (VLC, then mpv)</option><option value="vlc">VLC</option><option value="mpv">mpv</option></select></div>
     <div class="row2" style="grid-template-columns:90px 1fr"><label>Window</label><select id="playerStyle"><option value="own">Our own window: resizable, with hover controls (VLC)</option><option value="chromeless">Chromeless: no window frame, always on top</option><option value="normal">VLC / mpv own window</option></select></div>
+    <div class="row2" style="grid-template-columns:90px 1fr"><label>Ads</label><select id="ads"><option value="skip">Skip them: the picture pauses until the break is over</option><option value="show">Show them, muted (our own window only)</option></select></div>
     <div class="muted" id="plStyleNote"></div>
     <input id="playerPath" placeholder="Or a player program of your own (leave empty for automatic)" autocomplete="off" spellcheck="false" style="width:100%"></div>
   <div class="sec"><h3>BACKUP</h3><div class="muted">Your channels and settings in one file (never your login). Use it to move to another PC or after a reinstall.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><a href="/api/export" download="imc-chat-backup.json"><button type="button" class="ghost">Export</button></a><button type="button" class="ghost" id="importBtn">Import</button><input type="file" id="importFile" accept=".json,application/json" style="display:none"></div></div>
@@ -173,7 +174,7 @@ function drawSettings() {
   setList('hlWords', s.highlightWords); setList('muUsers', s.mutedUsers); setList('muWords', s.mutedWords);
   $('alertList').innerHTML = S.channels.length ? S.channels.map((c) => '<label class="tgl"><input type="checkbox" data-alert="' + esc(c.login) + '"' + ((s.mutedAlerts || []).includes(c.login) ? '' : ' checked') + '> Alerts for ' + esc(c.name) + '</label>').join('') : '<span class="muted">Join a channel first.</span>';
   $('appNote').textContent = S.customClient ? 'Using your own Twitch app (' + S.clientId + ').' : 'Using the shared IMC-Chat app. That works fine; your own app is only needed if you want the login screen and limits to be yours alone.';
-  $('acct').textContent = 'Logged in as ' + S.login + '. Your channels and settings stay on this PC.'; $('recentHistory').checked = !!s.recentHistory; if (document.activeElement !== $('playerPath')) $('playerPath').value = s.playerPath || ''; $('playerPref').value = s.playerPref || ''; $('playerStyle').value = s.playerStyle || 'own'; $('compact').checked = s.compact !== false; $('showTime').checked = s.showTime !== false; $('altRows').checked = !!s.altRows;
+  $('acct').textContent = 'Logged in as ' + S.login + '. Your channels and settings stay on this PC.'; $('recentHistory').checked = !!s.recentHistory; if (document.activeElement !== $('playerPath')) $('playerPath').value = s.playerPath || ''; $('playerPref').value = s.playerPref || ''; $('playerStyle').value = s.playerStyle || 'own'; $('ads').value = s.ads || 'skip'; $('compact').checked = s.compact !== false; $('showTime').checked = s.showTime !== false; $('altRows').checked = !!s.altRows;
   document.querySelectorAll('.layouts .opt').forEach((o) => o.classList.toggle('on', o.dataset.l === s.layout));
 }
 let saveT = null; function save(b) { Object.assign(S.settings, b); applySettings(S.settings); clearTimeout(saveT); saveT = setTimeout(() => post('settings', S.settings), 250); }
@@ -214,7 +215,7 @@ async function playerInfo() {
 }
 async function playIn(login) {
   const st = cfgs().playerStyle || 'own';
-  if (st === 'own' && playerKind === 'vlc' && window.imcWindow && window.imcWindow.watch) { const r = await window.imcWindow.watch(login, { playerPath: cfgs().playerPath || '' }).catch((x) => ({ error: String(x.message || x) })); if (r && r.error) toast(r.error); return; }   // the app's own player window
+  if (st === 'own' && playerKind === 'vlc' && window.imcWindow && window.imcWindow.watch) { const r = await window.imcWindow.watch(login, { playerPath: cfgs().playerPath || '', ads: cfgs().ads || 'skip' }).catch((x) => ({ error: String(x.message || x) })); if (r && r.error) toast(r.error); return; }   // the app's own player window
   toast('Starting ' + (playerName || 'the player') + '...', true); const r = await post('play', { channel: login }).catch(() => ({ error: 'Could not reach the app' })); if (r.error) toast(r.error); else toast('Opened in ' + r.player, true); }
 $('popPlayer').onclick = () => playIn(POP);
 $('plInstallBtn').onclick = async () => { const r = await post('streamlink', { what: 'streamlink' }).catch(() => ({ error: 'Could not reach the app' })); if (r.error) toast(r.error); await playerInfo(); };
@@ -460,6 +461,7 @@ $('hlWords').onchange = (e) => save({ highlightWords: parts(e.target.value, (x) 
 $('alertList').onchange = (e) => { const c = e.target.dataset.alert; if (!c) return; const set = new Set(S.settings.mutedAlerts || []); if (e.target.checked) set.delete(c); else set.add(c); save({ mutedAlerts: Array.from(set) }); };
 $('saveClient').onclick = async () => { const r = await post('clientid', { clientId: $('clientIdIn').value.trim() }); if (r.error) return toast(r.error); toast('Restarting. Log in again when it is back.'); $('settings').style.display = 'none'; setTimeout(() => location.reload(), 3500); };
 $('playerPref').onchange = async (e) => { save({ playerPref: e.target.value }); await new Promise((r) => setTimeout(r, 400)); playerInfo(); }; $('playerStyle').onchange = async (e) => { save({ playerStyle: e.target.value }); await new Promise((r) => setTimeout(r, 400)); playerInfo(); };
+$('ads').onchange = (e) => save({ ads: e.target.value });
 $('playerPath').onchange = async (e) => { save({ playerPath: e.target.value.trim() }); await new Promise((r) => setTimeout(r, 400)); playerInfo(); };
 $('recentHistory').onchange = (e) => save({ recentHistory: e.target.checked });
 $('importBtn').onclick = () => $('importFile').click();

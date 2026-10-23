@@ -11,7 +11,7 @@ const MOD_SCOPES = ['user:read:moderated_channels', 'moderator:manage:banned_use
 const EMOTE_SCOPE = 'user:read:emotes';
 const SCOPES = CHAT_SCOPES.concat(MOD_SCOPES, [EMOTE_SCOPE]);
 const NOTICE_COLORS = ['primary', 'blue', 'green', 'orange', 'purple'];
-const DEFAULT_SETTINGS = { font: 'IMC Sans', size: 16, weight: 400, theme: 'forge', layout: 'horizontal', active: '', showTime: true, altRows: false, compact: true, mentionSound: true, mentionVolume: 60, mentionFlash: true, highlightWords: [], mutedUsers: [], mutedWords: [], mutedAlerts: [], recentHistory: false, favEmotes: [], emoteUse: {}, playerPath: '', playerPref: '', playerStyle: 'own', railWidth: 0 };
+const DEFAULT_SETTINGS = { font: 'IMC Sans', size: 16, weight: 400, theme: 'forge', layout: 'horizontal', active: '', showTime: true, altRows: false, compact: true, mentionSound: true, mentionVolume: 60, mentionFlash: true, highlightWords: [], mutedUsers: [], mutedWords: [], mutedAlerts: [], recentHistory: false, favEmotes: [], emoteUse: {}, playerPath: '', playerPref: '', playerStyle: 'own', railWidth: 0, ads: 'skip' };
 const FONTS = ['IMC Sans', 'IMC Serif', 'IMC Dyslexia', 'system'], THEMES = ['forge', 'midnight', 'ember', 'dusk', 'slate', 'moss', 'cream', 'paper', 'sky'];
 
 /** one chat line as the recent-messages service keeps it (IRC), turned into the same message the live chat makes */
@@ -70,6 +70,7 @@ module.exports = function createTwitch(ctx) {
     if (['', 'vlc', 'mpv'].includes(b.playerPref)) settings.playerPref = b.playerPref;
     if (['own', 'chromeless', 'normal'].includes(b.playerStyle)) { settings.playerStyle = b.playerStyle; settings.styleChosen = true; }
     if (b.railWidth !== undefined && Number.isFinite(Number(b.railWidth))) { const w = Math.round(Number(b.railWidth)); settings.railWidth = w <= 0 ? 0 : Math.min(520, Math.max(120, w)); }   // the width of the channel list on the left; 0 = automatic
+    if (['skip', 'show'].includes(b.ads)) settings.ads = b.ads;
     const turnedOn = typeof b.recentHistory === 'boolean' && b.recentHistory && !settings.recentHistory;
     if (typeof b.recentHistory === 'boolean') settings.recentHistory = b.recentHistory;
     const fav = list(b.favEmotes, 60, 40, (x) => x); if (fav) settings.favEmotes = fav;
