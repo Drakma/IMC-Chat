@@ -30,6 +30,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/health') return json(res, 200, { ok: true, light: twitch.status().connected ? 'green' : 'amber', uptime: Math.round((Date.now() - STARTED) / 1000) });
     if (p === '/api/status') return json(res, 200, twitch.status());
+    if (p === '/api/badges') return json(res, 200, await twitch.badges(new URL(req.url, 'http://localhost').searchParams.get('channel')));
     if (p === '/api/history') return json(res, 200, twitch.history(new URL(req.url, 'http://localhost').searchParams.get('channel')));
     if (req.method === 'POST' && p.startsWith('/api/')) {
       if ((req.headers['content-type'] || '').indexOf('application/json') < 0) return json(res, 415, { error: 'JSON only' });

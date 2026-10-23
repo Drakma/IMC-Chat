@@ -17,7 +17,7 @@ module.exports = function createTwitch(ctx) {
   const write = (f, v) => { try { fs.mkdirSync(ctx.dir, { recursive: true }); fs.writeFileSync(f, JSON.stringify(v, null, 2)); } catch (e) { log('could not save', path.basename(f), e.message); } };
   let tokens = read(TOK, null), channels = read(CH, []), device = null, auth = { status: tokens ? 'ok' : 'none', message: tokens ? 'Logged in as ' + tokens.login : 'Not connected' };
   let ws = null, session = '', subs = new Map(), ready = false, pending = new Set(), ka = null, closed = false;   // subs: key "type|channelId" -> subscription id
-  const history = new Map(), live = { poll: null, prediction: null };
+  const history = new Map(), live = { poll: null, prediction: null }, badgeCache = new Map();   // badgeCache: 'global' or a channel id -> { 'set/version': image url }
 
   const form = (o) => new URLSearchParams(o).toString();
   async function idPost(ep, body) { const r = await doFetch(ID + ep, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form(body) }); return { ok: r.ok, status: r.status, json: await r.json().catch(() => ({})) }; }
@@ -59,6 +59,19 @@ module.exports = function createTwitch(ctx) {
     return { ok: r.ok, status: r.status, json: await r.json().catch(() => ({})) };
   }
   function logout() { closeWs(); tokens = null; subs.clear(); try { fs.unlinkSync(TOK); } catch (e) { /* none */ } auth = { status: 'none', message: 'Not connected' }; changed(); }
+
+  // ---------------------------------------------------------------- badges
+  async function loadBadges(id) {
+    if (badgeCache.has(id)) return;
+    const r = await helix('GET', '/chat/badges' + (id === 'global' ? '/global' : '?broadcaster_id=' + id)).catch(() => null), map = {};
+    for (const set of (r && r.json.data) || []) for (const v of set.versions || []) map[set.set_id + '/' + v.id] = v.image_url_2x || v.image_url_1x;
+    if (r && r.ok) badgeCache.set(id, map);
+  }
+  /** the badge pictures for one channel: its own (subscriber, bits) over the global ones */
+  async function badges(channel) {
+    const c = channels.find((x) => x.login === clean(channel)); await loadBadges('global'); if (c) await loadBadges(c.id);
+    return Object.assign({}, badgeCache.get('global'), c && badgeCache.get(c.id));
+  }
 
   // ---------------------------------------------------------------- channels
   const clean = (x) => String(x || '').trim().replace(/^#/, '').replace(/^https?:\/\/(www\.)?twitch\.tv\//i, '').split(/[/?\s]/)[0].toLowerCase();
@@ -114,7 +127,7 @@ module.exports = function createTwitch(ctx) {
   function onEvent(type, e) {
     if (type === 'channel.chat.message') {
       const ch = e.broadcaster_user_login, me = tokens && tokens.login;
-      const m = { id: e.message_id, channel: ch, uid: e.chatter_user_id, login: e.chatter_user_login, name: e.chatter_user_name || e.chatter_user_login, color: e.color || '', badges: (e.badges || []).map((b) => b.set_id),
+      const m = { id: e.message_id, channel: ch, uid: e.chatter_user_id, login: e.chatter_user_login, name: e.chatter_user_name || e.chatter_user_login, color: e.color || '', badges: (e.badges || []).map((b) => b.set_id + '/' + b.id),
         frags: ((e.message && e.message.fragments) || [{ type: 'text', text: (e.message && e.message.text) || '' }]).map((f) => ({ type: f.type, text: f.text, id: f.emote ? f.emote.id : undefined })),
         text: (e.message && e.message.text) || '', kind: e.message_type || 'text', ts: now(), mention: !!me && new RegExp('(^|\\W)@?' + me + '(\\W|$)', 'i').test((e.message && e.message.text) || ''),
         reply: e.reply ? { name: e.reply.parent_user_name, text: String(e.reply.parent_message_body || '').slice(0, 100) } : null, mine: !!tokens && e.chatter_user_id === tokens.user_id };
@@ -139,5 +152,5 @@ module.exports = function createTwitch(ctx) {
     if (!r.ok) throw new Error(r.json.message || 'Twitch refused the message');
     if (d && d.is_sent === false) throw new Error((d.drop_reason && d.drop_reason.message) || 'The message was not sent'); return { ok: true };
   }
-  return { startLogin, logout, join, leave, send, connect: () => connect(), status, history: (ch) => (history.get(clean(ch)) || []).filter((m) => !m.gone), onEvent, stop: closeWs };
+  return { startLogin, logout, join, leave, send, connect: () => connect(), status, badges, history: (ch) => (history.get(clean(ch)) || []).filter((m) => !m.gone), onEvent, stop: closeWs };
 };

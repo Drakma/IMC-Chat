@@ -18,6 +18,7 @@
   main { flex: 1; display: flex; min-height: 0; } #chatcol { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   #log { flex: 1; overflow-y: auto; padding: 10px 16px; font-size: 15px; line-height: 1.45; }
   .m { padding: 2px 0; word-wrap: break-word; } .m.ment { background: #3a2a1f; border-left: 3px solid var(--heat); padding-left: 8px; } .m.mine .n { text-decoration: underline; } .m .t { color: #6b7570; font-size: 11px; margin-right: 6px; } .m .n { font-weight: 700; } .m img { height: 24px; vertical-align: middle; margin: -4px 1px; }
+  .m img.bd { height: 18px; margin: -3px 3px -3px 0; }
   .m .b { font-size: 10px; letter-spacing: 1px; background: #2f3938; padding: 0 4px; margin-right: 4px; color: #aab3af; text-transform: uppercase; } .m .rp { display: block; color: #8a948f; font-size: 12px; } .m .rb { cursor: pointer; color: #6b7570; margin-left: 8px; font-size: 11px; visibility: hidden; } .m:hover .rb { visibility: visible; }
   #bar { display: flex; gap: 8px; padding: 10px 16px; background: var(--iron-d); flex: none; flex-wrap: wrap; } #bar input { flex: 1; } #reply { flex-basis: 100%; font-size: 12px; color: var(--aqua); display: none; } #reply b { cursor: pointer; color: var(--rust); margin-left: 8px; }
   aside { width: 300px; background: var(--iron-d); border-left: 1px solid var(--line); padding: 14px; overflow-y: auto; flex: none; } aside h2 { font-size: 12px; letter-spacing: 4px; color: var(--aqua); margin: 0 0 10px; } aside h2.h { color: var(--heat); margin-top: 18px; }
@@ -25,6 +26,9 @@
   .card a { color: var(--aqua); font-size: 12px; } .muted { color: #9aa39f; font-size: 13px; line-height: 1.5; }
   #login { margin: auto; max-width: 480px; padding: 30px; text-align: center; display: grid; gap: 14px; } #code { font-size: 38px; letter-spacing: 8px; color: var(--heat); font-weight: 700; } #login a { color: var(--aqua); }
   #empty { margin: auto; text-align: center; color: #9aa39f; padding: 20px; }
+  * { scrollbar-width: thin; scrollbar-color: var(--heat) var(--iron-d); }
+  ::-webkit-scrollbar { width: 12px; height: 12px; } ::-webkit-scrollbar-track { background: var(--iron-d); border-left: 1px solid var(--line); }
+  ::-webkit-scrollbar-thumb { background: var(--heat); border: 3px solid var(--iron-d); } ::-webkit-scrollbar-thumb:hover { background: var(--rust); } ::-webkit-scrollbar-corner { background: var(--iron-d); }
   #toast { position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%); background: var(--rust); color: #fff; padding: 8px 18px; font-weight: 700; display: none; z-index: 5; max-width: 90%; }
 </style></head>
 <body>
@@ -44,7 +48,7 @@
 const $ = (id) => document.getElementById(id), esc = (x) => String(x == null ? '' : x).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const post = (p, b) => fetch('/api/' + p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b || {}) }).then((r) => r.json());
 function toast(t) { const e = $('toast'); e.textContent = t; e.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => e.style.display = 'none', 4000); }
-let S = null, cur = '', replyTo = null, unread = {}, ments = {}; const msgs = {};
+let S = null, cur = '', replyTo = null, unread = {}, ments = {}; const msgs = {}, badgeUrls = {};
 try { cur = localStorage.getItem('imc.tab') || ''; } catch (e) { /* private */ }
 
 function drawStatus(s) {
@@ -62,16 +66,18 @@ function drawTabs() {
 function frag(f) { return f.type === 'emote' ? '<img alt="' + esc(f.text) + '" title="' + esc(f.text) + '" src="https://static-cdn.jtvnw.net/emoticons/v2/' + encodeURIComponent(f.id) + '/default/dark/2.0">' : esc(f.text); }
 function line(m) {
   const d = new Date(m.ts), t = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-  return '<div class="m' + (m.mention ? ' ment' : '') + (m.mine ? ' mine' : '') + '" data-id="' + esc(m.id) + '">' + (m.reply ? '<span class="rp">&#8627; @' + esc(m.reply.name) + ': ' + esc(m.reply.text) + '</span>' : '') + '<span class="t">' + t + '</span>' + (m.badges.includes('moderator') ? '<span class="b">mod</span>' : '') + (m.badges.includes('broadcaster') ? '<span class="b">host</span>' : '') + (m.badges.includes('subscriber') ? '<span class="b">sub</span>' : '')
+  return '<div class="m' + (m.mention ? ' ment' : '') + (m.mine ? ' mine' : '') + '" data-id="' + esc(m.id) + '">' + (m.reply ? '<span class="rp">&#8627; @' + esc(m.reply.name) + ': ' + esc(m.reply.text) + '</span>' : '') + '<span class="t">' + t + '</span>' + m.badges.map((b) => { const u = (badgeUrls[m.channel] || {})[b]; return u ? '<img class="bd" title="' + esc(b.split('/')[0]) + '" src="' + esc(u) + '">' : ''; }).join('')
     + '<span class="n" style="color:' + esc(m.color || '#4FBBBC') + '">' + esc(m.name) + '</span>: ' + m.frags.map(frag).join('') + '<span class="rb" data-reply="' + esc(m.id) + '" data-name="' + esc(m.name) + '">reply</span></div>';
 }
 function render() { const L = $('log'); L.innerHTML = (msgs[cur] || []).filter((m) => !m.gone).map(line).join(''); L.scrollTop = L.scrollHeight; }
 function addMsg(m) {
+  loadBadges(m.channel);
   const a = msgs[m.channel] = msgs[m.channel] || []; if (a.some((x) => x.id === m.id)) return; a.push(m); if (a.length > 400) a.shift();
   if (m.channel === cur) { const L = $('log'), stick = L.scrollHeight - L.scrollTop - L.clientHeight < 80; L.insertAdjacentHTML('beforeend', line(m)); while (L.children.length > 400) L.removeChild(L.firstChild); if (stick) L.scrollTop = L.scrollHeight; }
   else { unread[m.channel] = true; if (m.mention) ments[m.channel] = true; drawTabs(); }
 }
-async function openTab(c) { cur = c; unread[c] = false; ments[c] = false; replyTo = null; $('reply').style.display = 'none'; try { localStorage.setItem('imc.tab', c); } catch (e) { /* private */ } if (c && !msgs[c]) msgs[c] = await fetch('/api/history?channel=' + encodeURIComponent(c)).then((r) => r.json()); drawTabs(); render(); }
+async function loadBadges(c) { if (c && !badgeUrls[c]) { badgeUrls[c] = await fetch('/api/badges?channel=' + encodeURIComponent(c)).then((r) => r.json()).catch(() => ({})); if (c === cur) render(); } }
+async function openTab(c) { cur = c; loadBadges(c); unread[c] = false; ments[c] = false; replyTo = null; $('reply').style.display = 'none'; try { localStorage.setItem('imc.tab', c); } catch (e) { /* private */ } if (c && !msgs[c]) msgs[c] = await fetch('/api/history?channel=' + encodeURIComponent(c)).then((r) => r.json()); drawTabs(); render(); }
 function drawPoll(s) {
   const p = s.poll, q = s.prediction, me = s.login;
   $('poll').innerHTML = p ? '<div class="card"><div class="q">' + esc(p.title) + (p.done ? ' <span class="muted">(ended)</span>' : '') + '</div>' + (p.choices || []).map((c) => { const tot = (p.choices || []).reduce((a, x) => a + (x.votes || 0), 0) || 1; return '<div class="opt">' + esc(c.title) + ' <span class="muted">' + (c.votes || 0) + '</span><div class="bar"><i style="width:' + Math.round(100 * (c.votes || 0) / tot) + '%"></i></div></div>'; }).join('') + (p.done ? '' : '<a href="https://www.twitch.tv/' + esc(me) + '" target="_blank" rel="noopener">Open channel to vote</a>') + '</div>' : 'No poll right now.';
