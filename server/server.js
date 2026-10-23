@@ -46,6 +46,10 @@ const server = http.createServer(async (req, res) => {
         if (p === '/api/logout') { twitch.logout(); return json(res, 200, twitch.status()); }
         if (p === '/api/join') return json(res, 200, await twitch.join(b.channel));
         if (p === '/api/leave') return json(res, 200, await twitch.leave(b.channel));
+        if (p === '/api/import') return json(res, 200, await twitch.importData(b));
+        if (p === '/api/play') return json(res, 200, await player.play(b.channel, twitch.status().settings.playerPath, { pref: twitch.status().settings.playerPref, style: twitch.status().settings.playerStyle }));
+        if (p === '/api/streamlink') return json(res, 200, await player.install(b.what));
+        if (p === '/api/playerinfo') return json(res, 200, player.info(twitch.status().settings.playerPath, twitch.status().settings.playerPref));
         if (p === '/api/settings') return json(res, 200, twitch.configure(b));
         if (p === '/api/move') return json(res, 200, twitch.move(b.channel, b.to));
         if (p === '/api/mod') return json(res, 200, await twitch.mod(b.channel, b.action, b));
