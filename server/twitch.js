@@ -11,7 +11,7 @@ const MOD_SCOPES = ['user:read:moderated_channels', 'moderator:manage:banned_use
 const EMOTE_SCOPE = 'user:read:emotes';
 const SCOPES = CHAT_SCOPES.concat(MOD_SCOPES, [EMOTE_SCOPE]);
 const NOTICE_COLORS = ['primary', 'blue', 'green', 'orange', 'purple'];
-const DEFAULT_SETTINGS = { font: 'IMC Sans', size: 16, weight: 400, theme: 'forge', layout: 'horizontal', active: '', showTime: true, altRows: false };
+const DEFAULT_SETTINGS = { font: 'IMC Sans', size: 16, weight: 400, theme: 'forge', layout: 'horizontal', active: '', showTime: true, altRows: false, mentionSound: true, mentionVolume: 60, mentionFlash: true };
 const FONTS = ['IMC Sans', 'IMC Serif', 'IMC Dyslexia', 'system'], THEMES = ['forge', 'midnight', 'ember', 'dusk', 'slate', 'moss', 'cream', 'paper', 'sky'];
 
 module.exports = function createTwitch(ctx) {
@@ -42,6 +42,9 @@ module.exports = function createTwitch(ctx) {
     if (b.layout === 'vertical' || b.layout === 'horizontal') settings.layout = b.layout;
     if (typeof b.showTime === 'boolean') settings.showTime = b.showTime;
     if (typeof b.altRows === 'boolean') settings.altRows = b.altRows;
+    if (typeof b.mentionSound === 'boolean') settings.mentionSound = b.mentionSound;
+    if (typeof b.mentionFlash === 'boolean') settings.mentionFlash = b.mentionFlash;
+    if (Number.isFinite(Number(b.mentionVolume))) settings.mentionVolume = Math.min(100, Math.max(0, Math.round(Number(b.mentionVolume))));
     if (typeof b.active === 'string') settings.active = b.active.slice(0, 30);
     write(SET, settings); changed(); return settings;
   }
@@ -200,8 +203,9 @@ module.exports = function createTwitch(ctx) {
     const ch = e.broadcaster_user_login, me = tokens && tokens.login;
     if (type === 'channel.chat.message') {
       const text = (e.message && e.message.text) || '';
+      // a mention is your name in the text, or a reply to you (never your own messages)
       keep(ch, Object.assign(person(e), { id: e.message_id, channel: ch, frags: fragsOf(e), text, kind: e.message_type || 'text', ts: now(), mine: !!tokens && e.chatter_user_id === tokens.user_id,
-        mention: !!me && new RegExp('(^|\\W)@?' + me + '(\\W|$)', 'i').test(text), bits: e.cheer ? e.cheer.bits : 0, reply: e.reply ? { name: e.reply.parent_user_name, text: String(e.reply.parent_message_body || '').slice(0, 100) } : null }));
+        mention: !!me && e.chatter_user_id !== tokens.user_id && (new RegExp('(^|\\W)@?' + me + '(\\W|$)', 'i').test(text) || !!(e.reply && e.reply.parent_user_login === me)), bits: e.cheer ? e.cheer.bits : 0, reply: e.reply ? { name: e.reply.parent_user_name, text: String(e.reply.parent_message_body || '').slice(0, 100) } : null }));
     } else if (type === 'channel.chat.notification') {
       const kind = e.notice_type, raid = e.raid;
       keep(ch, Object.assign(person(e), { id: e.message_id, channel: ch, frags: fragsOf(e), text: (e.message && e.message.text) || '', ts: now(), event: kind, system: String(e.system_message || '').slice(0, 300),
