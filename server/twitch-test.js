@@ -2,15 +2,18 @@
 // The Twitch side against a fake Twitch: nothing leaves this PC. Run: node twitch-test.js
 const assert = require('assert'), fs = require('fs'), os = require('os'), path = require('path'), createTwitch = require('./twitch');
 
+const IRC = '@badge-info=subscriber/12;badges=moderator/1,subscriber/12;color=#FF0000;display-name=Old\\sUser;emotes=25:0-4;id=h1aaaaaaaa;tmi-sent-ts=1700000000000;user-id=77 :olduser!olduser@olduser.tmi.twitch.tv PRIVMSG #alice :Kappa hello', hits = [];
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'imc-')), events = [], subsMade = [], deleted = [], sent = [], calls = []; let polls = 0, wsLast = null;
 const ALL = ['user:read:chat', 'user:write:chat', 'user:read:moderated_channels', 'moderator:manage:banned_users', 'moderator:manage:chat_messages', 'moderator:manage:chat_settings', 'moderator:read:chat_settings', 'user:read:emotes'];
 const users = { alice: { id: '11', login: 'alice', display_name: 'Alice', profile_image_url: 'https://x/a.png' }, mememe: { id: '99', login: 'mememe', display_name: 'Me' }, bobby: { id: '22', login: 'bobby', display_name: 'Bobby' } };
 const fake = async (url, opt) => {
-  opt = opt || {}; const j = (v, st) => ({ ok: !st || st < 400, status: st || 200, json: async () => v }), u = url.replace('https://api.twitch.tv/helix', '').replace('https://id.twitch.tv/oauth2', '');
+  opt = opt || {}; if (url.startsWith('https://recent-messages.robotty.de/')) { hits.push(url); return { ok: true, status: 200, json: async () => ({ messages: [IRC, 'PING :tmi.twitch.tv', IRC.replace('id=h1', 'id=h2').replace('Kappa hello', '\u0001ACTION waves\u0001').replace('emotes=25:0-4', 'emotes=')] }) }; }
+  const j = (v, st) => ({ ok: !st || st < 400, status: st || 200, json: async () => v }), u = url.replace('https://api.twitch.tv/helix', '').replace('https://id.twitch.tv/oauth2', '');
   if (u === '/device') return j({ device_code: 'dc', user_code: 'ABCD', verification_uri: 'https://twitch.tv/activate', expires_in: 600, interval: 1 });
   if (u === '/token') { if (opt.body.includes('device_code')) return ++polls < 2 ? j({ message: 'authorization_pending' }, 400) : j({ access_token: 'at', refresh_token: 'rt', expires_in: 14400 }); return j({ access_token: 'at2', refresh_token: 'rt2', expires_in: 14400 }); }
   if (u === '/validate') return j({ user_id: '99', login: 'mememe', scopes: ALL });
-  if (u.startsWith('/users?login=')) { const x = users[u.split('=')[1]]; return j({ data: x ? [x] : [] }); }
+  if (u.startsWith('/users?login=')) { const want = new URLSearchParams(u.split('?')[1]).getAll('login'); return j({ data: want.map((l) => users[l]).filter(Boolean) }); }
+  if (u.startsWith('/streams?')) { const ids = new URLSearchParams(u.split('?')[1]).getAll('user_id'); return j({ data: ids.filter((i) => i === '11').map((i) => ({ user_id: i, viewer_count: 1234, game_name: 'Tetris', title: 'Late night' })) }); }
   if (u.startsWith('/users?id=')) return j({ data: [{ id: '22', login: 'bobby', display_name: 'Bobby', profile_image_url: 'https://x/b.png', description: 'hi', created_at: '2020-01-01T00:00:00Z', broadcaster_type: 'affiliate' }] });
   if (u === '/chat/badges/global') return j({ data: [{ set_id: 'moderator', versions: [{ id: '1', image_url_2x: 'https://x/mod.png', title: 'Moderator' }] }] });
   if (u.startsWith('/chat/badges?broadcaster_id=')) return j({ data: [{ set_id: 'subscriber', versions: [{ id: '0', image_url_2x: 'https://x/sub.png', title: 'Subscriber' }] }] });
@@ -68,7 +71,7 @@ const ev = (name) => events.filter((e) => e[0] === name);
   assert.deepEqual(await T.mod('alice', 'settings'), { slow: 30, followers: -1, subs: false, emotes: true, unique: false });
   await assert.rejects(T.mod('alice', 'ban', { userId: 'x' }), /Unknown user/); await assert.rejects(T.mod('alice', 'nuke'), /Unknown action/);
   // settings and the order of tabs are remembered
-  T.configure({ font: 'IMC Dyslexia', size: 99, weight: 650, theme: 'moss', layout: 'vertical', active: 'alice' }); assert.deepEqual(T.status().settings, { font: 'IMC Dyslexia', size: 32, weight: 400, theme: 'moss', layout: 'vertical', active: 'alice', showTime: true, altRows: false, compact: true, mentionSound: true, mentionVolume: 60, mentionFlash: true, highlightWords: [], mutedUsers: [], mutedWords: [], mutedAlerts: [] }, 'bad values are refused or clamped');
+  T.configure({ font: 'IMC Dyslexia', size: 99, weight: 650, theme: 'moss', layout: 'vertical', active: 'alice' }); assert.deepEqual(T.status().settings, { font: 'IMC Dyslexia', size: 32, weight: 400, theme: 'moss', layout: 'vertical', active: 'alice', showTime: true, altRows: false, compact: true, mentionSound: true, mentionVolume: 60, mentionFlash: true, highlightWords: [], mutedUsers: [], mutedWords: [], mutedAlerts: [], recentHistory: false, favEmotes: [], emoteUse: {}, playerPath: '' }, 'bad values are refused or clamped');
   T.configure({ showTime: false, altRows: true, font: 'Comic Sans', theme: 'nope' }); assert.equal(T.status().settings.showTime, false); assert.equal(T.status().settings.altRows, true); T.configure({ highlightWords: [' gg ', 'gg', '', 'ez win'], mutedUsers: ['@NightBot', 'bad name!', 'x'], mutedWords: 'nope', mutedAlerts: ['Alice'] }); assert.deepEqual(T.status().settings.highlightWords, ['gg', 'ez win'], 'trimmed and de-duplicated'); assert.deepEqual(T.status().settings.mutedUsers, ['nightbot', 'badname', 'x']); assert.deepEqual(T.status().settings.mutedWords, [], 'a list must be a list'); assert.deepEqual(T.status().settings.mutedAlerts, ['alice']); T.configure({ highlightWords: [], mutedUsers: [], mutedAlerts: [] });
   T.configure({ mentionVolume: 500, mentionSound: false }); assert.equal(T.status().settings.mentionVolume, 100); assert.equal(T.status().settings.mentionSound, false); T.configure({ mentionSound: true, mentionVolume: 60, showTime: 'no' }); assert.equal(T.status().settings.showTime, false, 'only true or false'); assert.equal(T.status().settings.font, 'IMC Dyslexia'); T.move('mememe', 0); assert.deepEqual(T.status().channels.map((c) => c.login), ['mememe', 'alice']);
   // moving to a new Twitch address keeps the subscriptions
@@ -78,7 +81,22 @@ const ev = (name) => events.filter((e) => e[0] === name);
   // a login from before the mod tools existed is asked to reconnect, and mod actions are refused
   const old = fs.mkdtempSync(path.join(os.tmpdir(), 'imc-old-')); fs.writeFileSync(path.join(old, 'tokens.json'), JSON.stringify({ access_token: 'a', refresh_token: 'r', expires_at: Date.now() + 1e7, user_id: '99', login: 'mememe', scopes: ['user:read:chat', 'user:write:chat'] })); fs.writeFileSync(path.join(old, 'channels.json'), JSON.stringify([{ login: 'mememe', id: '99', name: 'Me' }]));
   const T3 = createTwitch({ dir: old, clientId: 'cid', fetch: fake, WebSocket: FakeWS }); assert.equal(T3.status().needsModScopes, true); await assert.rejects(T3.mod('mememe', 'clear'), /Reconnect Twitch/);
+  // the optional recent history: off until you switch it on, then older messages come first
+  const before2 = hits.length; await T.join('bobby'); await new Promise((r) => setTimeout(r, 30)); assert.equal(hits.length, before2, 'nothing is sent anywhere while it is off');
+  T.configure({ recentHistory: true }); await new Promise((r) => setTimeout(r, 60)); assert.ok(hits.some((u) => u.includes('/recent-messages/bobby?')), 'switching it on fetches every joined channel');
+  const hist = T.history('bobby'); assert.equal(hist.length, 2); assert.equal(hist[0].name, 'Old User'); assert.deepEqual(hist[0].badges, ['moderator/1', 'subscriber/12']); assert.deepEqual(hist[0].frags.map((f) => f.type + ':' + f.text), ['emote:Kappa', 'text: hello']); assert.equal(hist[0].frags[0].id, '25'); assert.equal(hist[1].text, 'waves', '/me lines lose their wrapper'); assert.equal(hist[0].mention, false); assert.equal(hist[0].old, true);
+  T.configure({ recentHistory: false });
+  // who is live
+  await T.fillLive(); assert.deepEqual(T.status().channels.find((c) => c.login === 'bobby').live, null); await T.join('alice'); await T.fillLive(); assert.deepEqual(T.status().channels.find((c) => c.login === 'alice').live, { viewers: 1234, game: 'Tetris', title: 'Late night' });
+  // favourites and what you use most
+  T.configure({ favEmotes: ['Kappa', 'Kappa', ''], emoteUse: { Kappa: 5, PogChamp: 12, bad: 0, ['x'.repeat(50)]: 3 } }); assert.deepEqual(T.status().settings.favEmotes, ['Kappa']); assert.deepEqual(Object.keys(T.status().settings.emoteUse), ['PogChamp', 'Kappa'], 'sorted by use, junk dropped');
+  T.configure({ playerPath: 'C:\\Tools\\mpv.exe' }); assert.equal(T.status().settings.playerPath, 'C:\\Tools\\mpv.exe'); T.configure({ playerPath: 'notes.txt' }); assert.equal(T.status().settings.playerPath, 'C:\\Tools\\mpv.exe', 'only programs'); T.configure({ playerPath: '' }); assert.equal(T.status().settings.playerPath, '');
+  // backup and restore
+  const bk = T.exportData(); assert.equal(bk.app, 'IMC-Chat'); assert.ok(!JSON.stringify(bk).includes('access_token'), 'never the login'); assert.deepEqual(bk.channels.sort(), ['alice', 'bobby', 'mememe']);
+  const fresh = fs.mkdtempSync(path.join(os.tmpdir(), 'imc-new-')); fs.writeFileSync(path.join(fresh, 'tokens.json'), JSON.stringify({ access_token: 'a', refresh_token: 'r', expires_at: Date.now() + 1e7, user_id: '99', login: 'mememe', scopes: ALL }));
+  const T4 = createTwitch({ dir: fresh, clientId: 'cid', fetch: fake, WebSocket: FakeWS }); await assert.rejects(T4.importData({ app: 'other' }), /not an IMC-Chat backup/); const st4 = await T4.importData(Object.assign({}, bk, { channels: bk.channels.concat(['nobody1', '!!']) }));
+  assert.deepEqual(st4.channels.map((c) => c.login).sort(), ['alice', 'bobby', 'mememe']); assert.equal(st4.settings.theme, 'moss', 'settings come back too'); assert.deepEqual(st4.settings.favEmotes, ['Kappa']);
   // everything survives a restart
-  const T2 = createTwitch({ dir, clientId: 'cid', fetch: fake, WebSocket: FakeWS }); assert.deepEqual(T2.status().channels.map((c) => c.login), ['mememe']); assert.equal(T2.status().settings.theme, 'moss'); assert.equal(T2.status().auth.status, 'ok');
+  const T2 = createTwitch({ dir, clientId: 'cid', fetch: fake, WebSocket: FakeWS }); assert.deepEqual(T2.status().channels.map((c) => c.login).sort(), ['alice', 'bobby', 'mememe']); assert.equal(T2.status().settings.theme, 'moss'); assert.equal(T2.status().auth.status, 'ok');
   T.stop(); console.log('twitch test passed'); process.exit(0);
 })().catch((e) => { console.error('FAILED:', e); process.exit(1); });

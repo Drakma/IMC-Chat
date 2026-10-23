@@ -14,6 +14,11 @@ A Twitch chat client for Windows, in the same style as [ItMeCasey Stream](https:
 - **Links** in chat open in your browser (hover for the site, and a preview for direct picture links). **Ctrl+F** finds in the current channel; a button jumps back to the latest when you have scrolled up.
 - **Alerts:** your name, a reply to you, or one of your **highlight words** plays a chime, flashes the tab and (when the window is in the background) the taskbar button. Tabs show how many messages you missed. **Muted users and words** are hidden; alerts can be switched off per channel.
 - **Connection:** the header shows *Reconnecting* when Twitch's chat connection drops and *App not responding* when the app itself does.
+- **Watch:** hover a tab and press the play icon (or right-click it) to open a **popout**: the stream in Twitch's player with the chat beside it, or the chat alone. Prefer VLC or mpv? *Open in VLC* (right-click a tab, or the button in a popout) uses Streamlink to hand the stream to your player. **Settings > Video player** has a button that installs Streamlink with winget.
+- **Right-click** a message (copy, reply, open the user, delete/timeout/ban for mods), a tab (popout, player, mute alerts, leave) or any text box (cut, copy, paste). Tabs show a LIVE tag with viewers and game.
+- **Emote picker extras:** *Recent* and favourite (★) tabs; right-click an emote to favourite it. Up arrow in an empty box brings back what you sent; a counter shows the characters left near the 500 limit.
+- **Recent messages (optional, off by default):** Settings > Chat can load the last messages when you join a channel, using the community service recent-messages.robotty.de (the channel name is sent to it).
+- **Backup:** Settings > Backup exports your channels and settings to a file and imports them again (never your login).
 - **Hover a name** for a card: picture, badges, account age, bio (and the moderator buttons where you are a moderator).
 - **Tabs:** horizontal or vertical (settings), drag to reorder. Your channels, their order, the open tab and every setting are remembered between sessions.
 - **Settings (gear):** font (IMC Sans, IMC Serif, IMC Dyslexia or your system font), size, weight (Thin to Black), and 9 themes: Forge, Midnight, Ember (dark), Dusk, Slate, Moss (mid), Cream, Paper, Sky (light).

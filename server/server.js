@@ -4,6 +4,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const createTwitch = require('./twitch.js');
+const player = require('./player.js')({});
 const thirdParty = require('./emotes.js')({ log: (...a) => console.log(...a) }).forChannel;
 
 const DATA = process.env.IMC_DATA || path.join(__dirname, 'data'), PORT = Number(process.env.IMC_PORT) || 8430, STARTED = Date.now();
@@ -32,6 +33,7 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/health') return json(res, 200, { ok: true, light: twitch.status().connected ? 'green' : 'amber', uptime: Math.round((Date.now() - STARTED) / 1000) });
     if (p === '/api/status') return json(res, 200, twitch.status());
     if (p === '/api/badges') return json(res, 200, await twitch.badges(new URL(req.url, 'http://localhost').searchParams.get('channel')));
+    if (p === '/api/export') { res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Disposition': 'attachment; filename="imc-chat-backup.json"', 'Cache-Control': 'no-store' }); return res.end(JSON.stringify(twitch.exportData(), null, 2)); }
     if (p === '/api/emotes') return json(res, 200, await twitch.emotes(new URL(req.url, 'http://localhost').searchParams.get('channel')).catch((e) => ({ error: e.message })));
     if (p === '/api/user') return json(res, 200, await twitch.userInfo(new URL(req.url, 'http://localhost').searchParams.get('id')).catch((e) => ({ error: e.message })));
     if (p === '/api/history') return json(res, 200, twitch.history(new URL(req.url, 'http://localhost').searchParams.get('channel')));
@@ -47,6 +49,10 @@ const server = http.createServer(async (req, res) => {
           const id = String(b.clientId || '').trim(); if (id && !/^[a-z0-9]{20,40}$/.test(id)) return json(res, 200, { error: 'That does not look like a Twitch Client ID (letters and numbers, about 30 characters)' });
           const c = Object.assign({}, cfg); if (id) c.clientId = id; else delete c.clientId; fs.writeFileSync(path.join(DATA, 'config.json'), JSON.stringify(c, null, 2)); twitch.logout(); json(res, 200, { ok: true }); return setTimeout(() => process.exit(75), 300);
         }
+        if (p === '/api/import') return json(res, 200, await twitch.importData(b));
+        if (p === '/api/play') return json(res, 200, await player.play(b.channel, twitch.status().settings.playerPath));
+        if (p === '/api/streamlink') return json(res, 200, await player.install());
+        if (p === '/api/playerinfo') return json(res, 200, player.info(twitch.status().settings.playerPath));
         if (p === '/api/settings') return json(res, 200, twitch.configure(b));
         if (p === '/api/move') return json(res, 200, twitch.move(b.channel, b.to));
         if (p === '/api/mod') return json(res, 200, await twitch.mod(b.channel, b.action, b));

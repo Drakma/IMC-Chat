@@ -32,8 +32,6 @@ function openWindow() {
   win.once('ready-to-show', () => win.show());
   win.on('close', (e) => { if (!win.isMinimized() && !win.isMaximized()) settings.window = win.getNormalBounds(); saveSettings(); if (!quitting && settings.closeToTray) { e.preventDefault(); win.hide(); } });
   win.on('closed', () => { win = null; }); win.on('focus', () => win.flashFrame(false));
-  win.webContents.setWindowOpenHandler(({ url: u }) => { if (/^https?:\/\//.test(u)) shell.openExternal(u); return { action: 'deny' }; });
-  win.webContents.on('will-navigate', (e, u) => { if (!u.startsWith(url()) && !u.startsWith('data:')) { e.preventDefault(); if (/^https?:\/\//.test(u)) shell.openExternal(u); } });
   win.loadURL(SPLASH).then(() => waitForServer().then(() => win && win.loadURL(url()))).catch(() => {});
 }
 const TEXT = { green: 'Connected', amber: 'Not connected to Twitch yet', red: 'Server problem', grey: 'Starting...' };
@@ -50,6 +48,15 @@ function refreshTray() {
 ipcMain.on('overlay', (e, o) => {
   const hex = /^#[0-9a-fA-F]{6}$/; if (!win || !o || !hex.test(o.color) || !hex.test(o.symbolColor)) return;
   try { win.setTitleBarOverlay({ color: o.color, symbolColor: o.symbolColor, height: 40 }); } catch (err) { /* not supported */ }
+});
+// links open in the browser; a popout (this app's own page with ?popout=) opens as its own window, with the stream beside the chat if you asked to watch
+app.on('web-contents-created', (e, wc) => {
+  if (wc.getType() !== 'window') return;   // the Twitch player frame is not a window of its own
+  wc.setWindowOpenHandler(({ url: u }) => {
+    if (u.startsWith(url() + '?popout=')) { const watch = /[?&]watch=1/.test(u); return { action: 'allow', overrideBrowserWindowOptions: { width: watch ? 1180 : 480, height: 760, minWidth: 360, minHeight: 360, autoHideMenuBar: true, backgroundColor: '#222A2A', icon: icon('icon.png') } }; }
+    if (/^https?:\/\//.test(u)) shell.openExternal(u); return { action: 'deny' };
+  });
+  wc.on('will-navigate', (ev, u) => { if (!u.startsWith(url()) && !u.startsWith('data:')) { ev.preventDefault(); if (/^https?:\/\//.test(u)) shell.openExternal(u); } });
 });
 ipcMain.on('flash', () => { if (win && !win.isFocused()) win.flashFrame(true); });   // a mention while the window is in the background: the taskbar button flashes
 app.on('second-instance', openWindow);

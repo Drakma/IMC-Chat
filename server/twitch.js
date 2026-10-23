@@ -11,8 +11,26 @@ const MOD_SCOPES = ['user:read:moderated_channels', 'moderator:manage:banned_use
 const EMOTE_SCOPE = 'user:read:emotes';
 const SCOPES = CHAT_SCOPES.concat(MOD_SCOPES, [EMOTE_SCOPE]);
 const NOTICE_COLORS = ['primary', 'blue', 'green', 'orange', 'purple'];
-const DEFAULT_SETTINGS = { font: 'IMC Sans', size: 16, weight: 400, theme: 'forge', layout: 'horizontal', active: '', showTime: true, altRows: false, compact: true, mentionSound: true, mentionVolume: 60, mentionFlash: true, highlightWords: [], mutedUsers: [], mutedWords: [], mutedAlerts: [] };
+const DEFAULT_SETTINGS = { font: 'IMC Sans', size: 16, weight: 400, theme: 'forge', layout: 'horizontal', active: '', showTime: true, altRows: false, compact: true, mentionSound: true, mentionVolume: 60, mentionFlash: true, highlightWords: [], mutedUsers: [], mutedWords: [], mutedAlerts: [], recentHistory: false, favEmotes: [], emoteUse: {}, playerPath: '' };
 const FONTS = ['IMC Sans', 'IMC Serif', 'IMC Dyslexia', 'system'], THEMES = ['forge', 'midnight', 'ember', 'dusk', 'slate', 'moss', 'cream', 'paper', 'sky'];
+
+/** one chat line as the recent-messages service keeps it (IRC), turned into the same message the live chat makes */
+function parseIrc(line) {
+  let tags = {}, rest = String(line);
+  if (rest[0] === '@') { const i = rest.indexOf(' '); for (const kv of rest.slice(1, i).split(';')) { const j = kv.indexOf('='); tags[kv.slice(0, j)] = kv.slice(j + 1).replace(/\\s/g, ' ').replace(/\\:/g, ';').replace(/\\\\/g, '\\'); } rest = rest.slice(i + 1); }
+  const m = /^:([^!\s]+)![^\s]* PRIVMSG #(\S+) :([\s\S]*)$/.exec(rest); return m ? { tags, login: m[1], channel: m[2], text: m[3] } : null;
+}
+function fromIrc(p, myId, now) {
+  const t = p.tags; if (!t.id || !/^[\w-]{8,64}$/.test(t.id)) return null;
+  let text = p.text; const act = /^\u0001ACTION ([\s\S]*)\u0001$/.exec(text); if (act) text = act[1];
+  const chars = Array.from(text), spans = [];
+  for (const part of String(t.emotes || '').split('/')) { const [id, ranges] = part.split(':'); if (!id || !ranges) continue; for (const r of ranges.split(',')) { const [a, b] = r.split('-').map(Number); if (a >= 0 && b >= a) spans.push({ a, b, id }); } }
+  spans.sort((x, y) => x.a - y.a); const frags = []; let at = 0;
+  for (const s of spans) { if (s.a < at) continue; if (s.a > at) frags.push({ type: 'text', text: chars.slice(at, s.a).join('') }); frags.push({ type: 'emote', text: chars.slice(s.a, s.b + 1).join(''), id: s.id }); at = s.b + 1; }
+  if (at < chars.length) frags.push({ type: 'text', text: chars.slice(at).join('') });
+  return { id: t.id, channel: p.channel, uid: t['user-id'] || '', login: p.login, name: t['display-name'] || p.login, color: t.color || '', badges: t.badges ? t.badges.split(',').filter(Boolean) : [], frags, text, kind: 'text', ts: Number(t['tmi-sent-ts']) || now,
+    mine: !!myId && t['user-id'] === myId, mention: false, bits: Number(t.bits) || 0, reply: t['reply-parent-display-name'] ? { name: t['reply-parent-display-name'], text: String(t['reply-parent-msg-body'] || '').slice(0, 100) } : null, old: true };
+}
 
 module.exports = function createTwitch(ctx) {
   const log = ctx.log || (() => {}), doFetch = ctx.fetch || ((...a) => fetch(...a)), WS = ctx.WebSocket || globalThis.WebSocket, now = ctx.now || Date.now, emit = ctx.emit || (() => {});
@@ -22,14 +40,14 @@ module.exports = function createTwitch(ctx) {
   const write = (f, v) => { try { fs.mkdirSync(ctx.dir, { recursive: true }); fs.writeFileSync(f, JSON.stringify(v, null, 2)); } catch (e) { log('could not save', path.basename(f), e.message); } };
   let tokens = read(TOK, null), channels = read(CH, []), settings = Object.assign({}, DEFAULT_SETTINGS, read(SET, {})), device = null, auth = { status: tokens ? 'ok' : 'none', message: tokens ? 'Logged in as ' + tokens.login : 'Not connected' };
   let ws = null, session = '', subs = new Map(), ready = false, ka = null, closed = false, mods = new Set(), modsAt = 0;   // subs: "type|channelId" -> subscription id
-  const emoteCache = new Map(), history = new Map(), badgeCache = new Map(), userCache = new Map();   // badgeCache: 'global' or a channel id -> { 'set/version': { u: image, t: title } }
+  const liveMap = new Map(), backfilled = new Set(), emoteCache = new Map(), history = new Map(), badgeCache = new Map(), userCache = new Map();   // badgeCache: 'global' or a channel id -> { 'set/version': { u: image, t: title } }
 
   const form = (o) => new URLSearchParams(o).toString();
   async function idPost(ep, body) { const r = await doFetch(ID + ep, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form(body) }); return { ok: r.ok, status: r.status, json: await r.json().catch(() => ({})) }; }
   const granted = () => (tokens && tokens.scopes) || [];
   const isMod = (c) => !!tokens && (c.id === tokens.user_id || mods.has(c.id));
   const status = () => ({ auth, login: tokens ? tokens.login : '', userId: tokens ? tokens.user_id : '', device: device && { code: device.user_code, url: device.verification_uri }, connected: ready,
-    channels: channels.map((c) => Object.assign({}, c, { mod: isMod(c) })), settings, clientId: ctx.clientId, customClient: !!ctx.customClient, needsModScopes: !!tokens && MOD_SCOPES.concat([EMOTE_SCOPE]).some((s) => !granted().includes(s)) });
+    channels: channels.map((c) => Object.assign({}, c, { mod: isMod(c), live: liveMap.get(c.id) || null })), settings, clientId: ctx.clientId, customClient: !!ctx.customClient, needsModScopes: !!tokens && MOD_SCOPES.concat([EMOTE_SCOPE]).some((s) => !granted().includes(s)) });
   const changed = () => emit('status', status());
 
   // ---------------------------------------------------------------- settings
@@ -47,6 +65,12 @@ module.exports = function createTwitch(ctx) {
     if (typeof b.showTime === 'boolean') settings.showTime = b.showTime;
     if (typeof b.altRows === 'boolean') settings.altRows = b.altRows;
     if (typeof b.compact === 'boolean') settings.compact = b.compact;
+    if (typeof b.playerPath === 'string') { const pp = b.playerPath.trim().slice(0, 260); if (pp === '' || /\.exe$/i.test(pp)) settings.playerPath = pp; }   // a program, or empty for automatic
+    const turnedOn = typeof b.recentHistory === 'boolean' && b.recentHistory && !settings.recentHistory;
+    if (typeof b.recentHistory === 'boolean') settings.recentHistory = b.recentHistory;
+    const fav = list(b.favEmotes, 60, 40, (x) => x); if (fav) settings.favEmotes = fav;
+    if (b.emoteUse && typeof b.emoteUse === 'object' && !Array.isArray(b.emoteUse)) settings.emoteUse = Object.fromEntries(Object.entries(b.emoteUse).filter(([k, v]) => k.length <= 40 && Number(v) >= 1).map(([k, v]) => [k, Math.min(99999, Math.round(Number(v)))]).sort((x, y) => y[1] - x[1]).slice(0, 150));
+    if (turnedOn) channels.forEach((c) => backfill(c.login));
     if (typeof b.mentionSound === 'boolean') settings.mentionSound = b.mentionSound;
     if (typeof b.mentionFlash === 'boolean') settings.mentionFlash = b.mentionFlash;
     if (Number.isFinite(Number(b.mentionVolume))) settings.mentionVolume = Math.min(100, Math.max(0, Math.round(Number(b.mentionVolume))));
@@ -131,6 +155,37 @@ module.exports = function createTwitch(ctx) {
     emoteCache.set(c.id, { at: now(), v: out }); return out;
   }
 
+  // ---------------------------------------------------------------- recent history (optional: asks a community service, so the channel name leaves this PC)
+  async function backfill(login) {
+    if (!settings.recentHistory || !/^[a-z0-9_]{3,25}$/.test(login)) return;
+    const r = await doFetch('https://recent-messages.robotty.de/api/v2/recent-messages/' + login + '?limit=100&hide_moderation_messages=true&hide_moderated_messages=true', { headers: { 'User-Agent': 'IMC-Chat' } }).catch(() => null);
+    const j = r && r.ok ? await r.json().catch(() => null) : null; if (!j || !Array.isArray(j.messages)) return;
+    const old = j.messages.map(parseIrc).filter(Boolean).map((p) => fromIrc(p, tokens && tokens.user_id, now())).filter(Boolean), have = history.get(login) || [], seen = new Set(have.map((m) => m.id));
+    history.set(login, old.filter((m) => !seen.has(m.id)).concat(have).sort((a, b) => a.ts - b.ts).slice(-300)); emit('backfill', { channel: login });
+  }
+  // ---------------------------------------------------------------- who is live (public stream data, every two minutes)
+  async function fillLive() {
+    if (!tokens || !channels.length) return; const next = new Map();
+    for (let i = 0; i < channels.length; i += 100) {
+      const part = channels.slice(i, i + 100), r = await helix('GET', '/streams?first=100&' + part.map((c) => 'user_id=' + c.id).join('&')).catch(() => null); if (!r || !r.ok) return;
+      for (const s of r.json.data || []) next.set(s.user_id, { viewers: s.viewer_count, game: s.game_name || '', title: String(s.title || '').slice(0, 140) });
+    }
+    const same = next.size === liveMap.size && Array.from(next).every(([k, v]) => JSON.stringify(liveMap.get(k)) === JSON.stringify(v)); liveMap.clear(); next.forEach((v, k) => liveMap.set(k, v)); if (!same) changed();
+  }
+  let liveTimer = null; const startLive = () => { fillLive(); clearInterval(liveTimer); liveTimer = setInterval(fillLive, ctx.liveMs || 120000); if (liveTimer.unref) liveTimer.unref(); };
+  // ---------------------------------------------------------------- backup: your channels and settings in one file (never the login)
+  const exportData = () => ({ app: 'IMC-Chat', version: 1, channels: channels.map((c) => c.login), settings: Object.assign({}, settings, { active: '' }) });
+  async function importData(d) {
+    if (!d || d.app !== 'IMC-Chat' || !Array.isArray(d.channels)) throw new Error('That is not an IMC-Chat backup file');
+    const want = Array.from(new Set(d.channels.map((x) => String(x).toLowerCase()).filter((x) => /^[a-z0-9_]{3,25}$/.test(x) && !channels.some((c) => c.login === x)))).slice(0, 60);
+    if (want.length) {
+      const r = await helix('GET', '/users?' + want.map((x) => 'login=' + x).join('&')); if (!r.ok) throw new Error(r.json.message || 'Twitch refused the channel list');
+      for (const u of r.json.data || []) channels.push({ login: u.login, id: u.id, name: u.display_name, image: u.profile_image_url });
+      write(CH, channels); if (ready) for (const c of channels) await subscribeChannel(c); channels.forEach((c) => backfill(c.login)); fillLive();
+    }
+    if (d.settings && typeof d.settings === 'object') configure(Object.assign({}, d.settings, { active: undefined })); changed(); return status();
+  }
+
   // ---------------------------------------------------------------- channels
   const clean = (x) => String(x || '').trim().replace(/^#/, '').replace(/^https?:\/\/(www\.)?twitch\.tv\//i, '').split(/[/?\s]/)[0].toLowerCase();
   async function loadMods(force) {
@@ -154,7 +209,7 @@ module.exports = function createTwitch(ctx) {
     const login = clean(name); if (!/^[a-z0-9_]{3,25}$/.test(login)) throw new Error('That is not a channel name');
     if (channels.some((c) => c.login === login)) return status();
     const r = await helix('GET', '/users?login=' + login); const u = r.json.data && r.json.data[0]; if (!u) throw new Error('No channel called ' + login);
-    channels.push({ login: u.login, id: u.id, name: u.display_name, image: u.profile_image_url }); write(CH, channels); if (ready) await subscribeChannel(channels[channels.length - 1]); changed(); return status();
+    channels.push({ login: u.login, id: u.id, name: u.display_name, image: u.profile_image_url }); write(CH, channels); if (ready) await subscribeChannel(channels[channels.length - 1]); backfill(u.login); fillLive(); changed(); return status();
   }
   async function leave(name) {
     const login = clean(name), c = channels.find((x) => x.login === login); if (!c) return status();
@@ -190,7 +245,7 @@ module.exports = function createTwitch(ctx) {
       if (t === 'session_welcome') {
         session = m.payload.session.id;
         if (url) { ws = w; try { old && old.close(); } catch (e) { /* gone */ } ready = true; changed(); }   // moved to a new address: the subscriptions came along
-        else Promise.all(channels.map((c) => subscribeChannel(c))).then(() => { ready = true; changed(); loadMods(true); fillImages(); }).catch((e) => log('subscribe failed:', e.message));
+        else Promise.all(channels.map((c) => subscribeChannel(c))).then(() => { ready = true; changed(); loadMods(true); fillImages(); startLive(); channels.forEach((c) => { if (!backfilled.has(c.login)) { backfilled.add(c.login); backfill(c.login); } }); }).catch((e) => log('subscribe failed:', e.message));
       } else if (t === 'session_reconnect') connect(m.payload.session.reconnect_url);
       else if (t === 'notification') onEvent(m.metadata.subscription_type, m.payload.event);
     };
@@ -251,5 +306,5 @@ module.exports = function createTwitch(ctx) {
     else throw new Error('Unknown action');
     if (!r.ok) throw new Error(r.json.message || 'Twitch refused that'); return { ok: true };
   }
-  return { startLogin, logout, join, leave, move, send, mod, connect: () => connect(), status, configure, badges, emotes, userInfo, loadMods, fillImages, history: (ch) => (history.get(clean(ch)) || []).filter((m) => !m.gone), onEvent, stop: closeWs };
+  return { startLogin, logout, join, leave, move, send, mod, connect: () => connect(), status, configure, badges, emotes, userInfo, loadMods, fillImages, exportData, importData, fillLive, backfill, history: (ch) => (history.get(clean(ch)) || []).filter((m) => !m.gone), onEvent, stop: () => { clearInterval(liveTimer); closeWs(); } };
 };
